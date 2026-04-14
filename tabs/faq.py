@@ -21,6 +21,28 @@ The most recent month or week is shown as a lighter bar color to indicate the pe
 The KPI row shows the **last complete period** (second-to-last month/week), not the current partial one. Deltas compare against the period before that.
 """)
 
+    with st.expander("Referral Pacing / Velocity", expanded=False):
+        st.markdown("""
+**How pacing is calculated:**
+Pacing projects the current incomplete month or week to a full period based on **working days only** (Monday through Friday). Weekends and US federal holidays are excluded.
+
+```
+Projected = (Referrals so far / Working days elapsed) x Total working days in period
+```
+
+**Example:** If April 2026 has 608 referrals through April 11 (8 working days), and April has 22 total working days:
+- Rate = 608 / 8 = 76 referrals per working day
+- Projected = 76 x 22 = 1,672 for the full month
+
+**Weekly pacing** uses 5 working days (Monday through Friday) as the denominator.
+
+**Holidays excluded:** New Year's Day, MLK Day, Presidents' Day, Memorial Day, Independence Day, Labor Day, Columbus Day, Veterans Day, Thanksgiving, Christmas.
+
+**"Behind/ahead" comparison:** The projected total is compared against the prior complete period's actual total. For example, "behind 11% vs prior" means the projected April total is 11% lower than March's actual total.
+
+**Why working days?** Referrals primarily come from provider offices that operate on business days. Using calendar days would underestimate the daily rate (dividing by weekends when no referrals come in) and produce an artificially low projection.
+""")
+
     with st.expander("Intake Started", expanded=False):
         st.markdown("""
 **Definition:**
@@ -76,12 +98,17 @@ ZIP = REFERRING_CLINIC_ZIP ?? PATIENT_POSTAL_CODE
     with st.expander("Provider Identity (NPI vs. Physician Name)", expanded=False):
         st.markdown("""
 **How providers are identified:**
-Throughout this dashboard, providers are identified by `REFERRING_PHYSICIAN` (the physician name field). This matches the methodology used in the internal Talkiatry retention dashboards.
+The dashboard uses a coalesced provider identity: `REFERRING_PROVIDER_NPI` is the primary identifier. When NPI is missing or empty, we fall back to `REFERRING_PHYSICIAN` (the physician name field).
 
-**Why not NPI?**
-While `REFERRING_PROVIDER_NPI` is available for ~78% of referrals, using it as the primary identifier can split the same physician into multiple identities (e.g., when an NPI is missing for some referrals). The physician name field provides more consistent matching.
+```
+provider_id = REFERRING_PROVIDER_NPI ?? REFERRING_PHYSICIAN
+```
 
-**Unique provider counts:** "Unique Providers" in the KPI row and charts counts distinct non-empty `REFERRING_PHYSICIAN` values within the selected scope and period.
+NPI is available for ~78% of referrals. The fallback to physician name ensures the remaining ~22% are still counted.
+
+**Unique provider counts:** "Unique Providers" in the KPI row, charts, and provider change detail counts distinct non-empty `provider_id` values within the selected scope and period.
+
+**Provider Retention** uses `REFERRING_PHYSICIAN` (name only) to match the methodology validated against internal Talkiatry retention dashboards.
 """)
 
     with st.expander("Provider Retention Cohorts", expanded=False):

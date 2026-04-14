@@ -11,17 +11,25 @@ def render_retention_table(df, partner_filter=None):
         return
 
     st.subheader("Provider Retention by Cohort")
-    st.caption("M0 = first referral month (100%), M1 = 1 month later, etc. Using REFERRING_PHYSICIAN as identity.")
+    st.caption("M0 = first referral month (100.0%), M1 = 1 month later, etc. Using REFERRING_PHYSICIAN as identity.")
 
-    # Style: color cells by retention %
     display = ret.copy()
     m_cols = [c for c in display.columns if c.startswith("M")]
 
+    # Format as "70.6%" strings, keep NaN as empty
+    for col in m_cols:
+        display[col] = display[col].apply(
+            lambda v: f"{v:.1f}%" if pd.notna(v) and v != 0 else ("0.0%" if v == 0 else "")
+        )
+    # M0 is always 100.0%
+    if "M0" in display.columns:
+        display["M0"] = display["M0"].replace("", "100.0%")
+
     def color_cell(val):
-        if pd.isna(val) or val == "":
+        if not isinstance(val, str) or val == "":
             return ""
         try:
-            v = float(val)
+            v = float(val.replace("%", ""))
         except (ValueError, TypeError):
             return ""
         if v >= 60:

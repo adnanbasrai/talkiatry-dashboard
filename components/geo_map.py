@@ -26,7 +26,7 @@ def geocode_zips(zips):
     return pd.DataFrame(results)
 
 
-def render_geo_map(df):
+def render_geo_map(df, color_by_account=False):
     """Render a pydeck map of referral volume by zip code with partner breakdown tooltip."""
     # Aggregate by zip
     zip_agg = df.groupby("REFERRING_CLINIC_ZIP").agg(
@@ -63,10 +63,35 @@ def render_geo_map(df):
         st.warning("No geocoded zip codes found.")
         return None
 
-    # Color: green (high conversion) to red (low)
-    merged["color_r"] = ((1 - merged["pct_booked"]) * 220).clip(0, 255).astype(int)
-    merged["color_g"] = (merged["pct_booked"] * 180).clip(0, 255).astype(int)
-    merged["color_b"] = 80
+    # Color by top account in each zip, or by conversion rate
+    if color_by_account:
+        # Assign color based on the dominant account in each zip
+        top_partner = (
+            partner_by_zip.sort_values("count", ascending=False)
+            .drop_duplicates("REFERRING_CLINIC_ZIP")
+            .set_index("REFERRING_CLINIC_ZIP")["partner"]
+        )
+        merged["top_partner"] = merged["REFERRING_CLINIC_ZIP"].map(top_partner)
+        unique_partners = merged["top_partner"].unique().tolist()
+        import plotly.express as px
+        palette = px.colors.qualitative.Set2
+        partner_colors = {}
+        for i, p in enumerate(unique_partners):
+            hex_c = palette[i % len(palette)].lstrip("rgb(").rstrip(")")
+            if hex_c.startswith("#"):
+                r, g, b = int(hex_c[1:3], 16), int(hex_c[3:5], 16), int(hex_c[5:7], 16)
+            else:
+                parts = [x.strip() for x in hex_c.split(",")]
+                r, g, b = int(parts[0]), int(parts[1]), int(parts[2])
+            partner_colors[p] = (r, g, b)
+        merged["color_r"] = merged["top_partner"].map(lambda p: partner_colors.get(p, (74, 144, 217))[0])
+        merged["color_g"] = merged["top_partner"].map(lambda p: partner_colors.get(p, (74, 144, 217))[1])
+        merged["color_b"] = merged["top_partner"].map(lambda p: partner_colors.get(p, (74, 144, 217))[2])
+    else:
+        # Default: green (high conversion) to red (low)
+        merged["color_r"] = ((1 - merged["pct_booked"]) * 220).clip(0, 255).astype(int)
+        merged["color_g"] = (merged["pct_booked"] * 180).clip(0, 255).astype(int)
+        merged["color_b"] = 80
 
     # Size: proportional to volume
     max_refs = merged["referrals"].max()

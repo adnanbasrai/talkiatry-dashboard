@@ -4,20 +4,25 @@ import plotly.express as px
 import pandas as pd
 
 
-def render(df, period_col, entity_col, entity_label):
+def render(df, period_col):
+    # Inline entity toggle for drill-downs
+    entity_focus = st.radio("Drill down by", ["Clinics", "Providers"], horizontal=True, key="conv_entity_toggle")
+    entity_col = "REFERRING_CLINIC" if entity_focus == "Clinics" else "REFERRING_PHYSICIAN"
+    entity_label = "Clinic" if entity_focus == "Clinics" else "Provider"
+
     # --- Scope filters ---
     col1, col2 = st.columns(2)
     with col1:
-        accounts = ["All"] + sorted(df["PARTNER_ASSIGNMENT"].unique().tolist())
-        acct = st.selectbox("Account", accounts, key="conv_acct")
+        accounts = sorted(df["PARTNER_ASSIGNMENT"].unique().tolist())
+        acct = st.selectbox("Account", accounts, index=None, placeholder="All accounts — type to search...", key="conv_acct")
     with col2:
-        ppms = ["All"] + sorted(df["PPM"].unique().tolist())
-        ppm = st.selectbox("PPM", ppms, key="conv_ppm")
+        ppms = sorted(df["PPM"].unique().tolist())
+        ppm = st.selectbox("PPM", ppms, index=None, placeholder="All PPMs — type to search...", key="conv_ppm")
 
     filtered = df.copy()
-    if acct != "All":
+    if acct:
         filtered = filtered[filtered["PARTNER_ASSIGNMENT"] == acct]
-    if ppm != "All":
+    if ppm:
         filtered = filtered[filtered["PPM"] == ppm]
 
     n = len(filtered)

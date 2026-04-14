@@ -3,20 +3,35 @@ import pandas as pd
 from data.transforms import compute_metrics
 
 
+def _enrich_provider_detail(agg_df, source_df, include_account):
+    """Add physician name, NPI, and clinic to a provider aggregation."""
+    # For each provider_id, get the first physician name, NPI, and clinic
+    detail = (
+        source_df.groupby("provider_id")
+        .agg(
+            physician=("REFERRING_PHYSICIAN", "first"),
+            npi=("REFERRING_PROVIDER_NPI", "first"),
+            clinic=("REFERRING_CLINIC", "first"),
+        )
+        .reset_index()
+    )
+    # Clean NPI
+    detail["npi"] = detail["npi"].astype(str).str.replace(r"\.0$", "", regex=True).replace({"nan": "", "None": ""})
+
+    merged = agg_df.merge(detail, on="provider_id", how="left")
+    return merged
+
+
 def _provider_change_detail(curr_df, prev_df, include_account=False):
-    """Return (new_providers_df, lost_providers_df). Includes Account column when multi-account."""
-    def _valid_provs(d):
-        s = d["REFERRING_PHYSICIAN"].dropna()
-        return set(s[s.str.strip() != ""])
+    """Return (new_providers_df, lost_providers_df). Includes physician name, NPI, and clinic."""
+    curr_provs = set(curr_df["provider_id"].dropna())
+    prev_provs = set(prev_df["provider_id"].dropna())
 
-    curr_provs = _valid_provs(curr_df)
-    prev_provs = _valid_provs(prev_df)
-
-    group_cols = ["REFERRING_PHYSICIAN", "PARTNER_ASSIGNMENT"] if include_account else ["REFERRING_PHYSICIAN"]
+    group_cols = ["provider_id", "PARTNER_ASSIGNMENT"] if include_account else ["provider_id"]
 
     # Lost: referred prior but not current
     lost_names = prev_provs - curr_provs
-    lost_df = prev_df[prev_df["REFERRING_PHYSICIAN"].isin(lost_names)]
+    lost_df = prev_df[prev_df["provider_id"].isin(lost_names)]
     if not lost_df.empty:
         lost = (
             lost_df.groupby(group_cols)
@@ -24,17 +39,26 @@ def _provider_change_detail(curr_df, prev_df, include_account=False):
             .reset_index()
             .sort_values("prior_referrals", ascending=False)
         )
-        rename = {"REFERRING_PHYSICIAN": "Provider", "prior_referrals": "Prior Referrals"}
+        lost = _enrich_provider_detail(lost, lost_df, include_account)
+        col_order = ["physician", "npi", "clinic"]
+        if include_account:
+            col_order.append("PARTNER_ASSIGNMENT")
+        col_order.append("prior_referrals")
+        lost = lost[[c for c in col_order if c in lost.columns]]
+        rename = {"physician": "Provider", "npi": "NPI", "clinic": "Clinic", "prior_referrals": "Prior Referrals"}
         if include_account:
             rename["PARTNER_ASSIGNMENT"] = "Account"
         lost = lost.rename(columns=rename)
     else:
-        cols = ["Provider", "Account", "Prior Referrals"] if include_account else ["Provider", "Prior Referrals"]
-        lost = pd.DataFrame(columns=cols)
+        base = ["Provider", "NPI", "Clinic"]
+        if include_account:
+            base.append("Account")
+        base.append("Prior Referrals")
+        lost = pd.DataFrame(columns=base)
 
     # New: referred current but not prior
     new_names = curr_provs - prev_provs
-    new_df = curr_df[curr_df["REFERRING_PHYSICIAN"].isin(new_names)]
+    new_df = curr_df[curr_df["provider_id"].isin(new_names)]
     if not new_df.empty:
         new = (
             new_df.groupby(group_cols)
@@ -42,13 +66,22 @@ def _provider_change_detail(curr_df, prev_df, include_account=False):
             .reset_index()
             .sort_values("referrals", ascending=False)
         )
-        rename = {"REFERRING_PHYSICIAN": "Provider", "referrals": "Referrals"}
+        new = _enrich_provider_detail(new, new_df, include_account)
+        col_order = ["physician", "npi", "clinic"]
+        if include_account:
+            col_order.append("PARTNER_ASSIGNMENT")
+        col_order.append("referrals")
+        new = new[[c for c in col_order if c in new.columns]]
+        rename = {"physician": "Provider", "npi": "NPI", "clinic": "Clinic", "referrals": "Referrals"}
         if include_account:
             rename["PARTNER_ASSIGNMENT"] = "Account"
         new = new.rename(columns=rename)
     else:
-        cols = ["Provider", "Account", "Referrals"] if include_account else ["Provider", "Referrals"]
-        new = pd.DataFrame(columns=cols)
+        base = ["Provider", "NPI", "Clinic"]
+        if include_account:
+            base.append("Account")
+        base.append("Referrals")
+        new = pd.DataFrame(columns=base)
 
     return new, lost
 

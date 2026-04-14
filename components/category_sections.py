@@ -51,6 +51,8 @@ def render_category_sections(df, entity_col, period_col="month_of", label="Entit
                 champion_name = st.selectbox(
                     "View top providers for:",
                     cats["champions"][entity_col].tolist(),
+                    index=None,
+                    placeholder="Select a clinic...",
                     key=f"{key_prefix}_champion_provider_drill",
                 )
                 if champion_name:
@@ -76,6 +78,8 @@ def render_category_sections(df, entity_col, period_col="month_of", label="Entit
                 lc_name = st.selectbox(
                     "View top providers for:",
                     cats["lowest_converting"][entity_col].tolist(),
+                    index=None,
+                    placeholder="Select a clinic...",
                     key=f"{key_prefix}_lowest_provider_drill",
                 )
                 if lc_name:

@@ -8,26 +8,61 @@ def load_referrals() -> pd.DataFrame:
     """Load and clean the consolidated referral CSV."""
     df = pd.read_csv(DATA_PATH, low_memory=False)
 
-    # --- Rename duplicate columns (pandas auto-appends .1) ---
-    # Keep the second copy of IS_INTAKE_COMPLETED and INTAKE_ACTION_STATUS
-    # since they align with the termination/appointment block
-    df = df.rename(columns={
-        "IS_INTAKE_COMPLETED.1": "_IS_INTAKE_COMPLETED_2",
-        "INTAKE_ACTION_STATUS.1": "_INTAKE_ACTION_STATUS_2",
-        "APPOINTMENT_SOURCE_FIRST_SCHEDULED.1": "_APPT_SOURCE_2",
-        "PARTNER_ASSIGNMENT.1": "_PARTNER_ASSIGNMENT_2",
-        "AREA.1": "_AREA_2",
-        "PATIENT_INSURANCE_NAME.1": "_PATIENT_INSURANCE_2",
-    })
+    # --- Rename duplicate columns (handle both .1 and _1 suffixes) ---
+    rename_map = {}
+    for old, new in [
+        ("IS_INTAKE_COMPLETED.1", "_IS_INTAKE_COMPLETED_2"),
+        ("IS_INTAKE_COMPLETED_1", "_IS_INTAKE_COMPLETED_2"),
+        ("INTAKE_ACTION_STATUS.1", "_INTAKE_ACTION_STATUS_2"),
+        ("INTAKE_ACTION_STATUS_1", "_INTAKE_ACTION_STATUS_2"),
+        ("APPOINTMENT_SOURCE_FIRST_SCHEDULED.1", "_APPT_SOURCE_2"),
+        ("APPOINTMENT_SOURCE_FIRST_SCHEDULED_1", "_APPT_SOURCE_2"),
+        ("PARTNER_ASSIGNMENT.1", "_PARTNER_ASSIGNMENT_2"),
+        ("PARTNER_ASSIGNMENT_1", "_PARTNER_ASSIGNMENT_2"),
+        ("AREA.1", "_AREA_2"),
+        ("AREA_1", "_AREA_2"),
+        ("PATIENT_INSURANCE_NAME.1", "_PATIENT_INSURANCE_2"),
+        ("PATIENT_INSURANCE_NAME_1", "_PATIENT_INSURANCE_2"),
+    ]:
+        if old in df.columns:
+            rename_map[old] = new
+    df = df.rename(columns=rename_map)
 
     # --- Track contact info presence BEFORE dropping PII ---
     df["has_email"] = df["PATIENT_EMAIL"].notna() & (df["PATIENT_EMAIL"].astype(str).str.strip() != "")
     df["has_phone"] = df["PATIENT_PHONE_NUMBER"].notna() & (df["PATIENT_PHONE_NUMBER"].astype(str).str.strip() != "")
 
-    # --- Drop PII ---
+    # --- Provider identity: use pre-coalesced REFERRING_PROVIDER (NPI first, physician fallback) ---
+    if "REFERRING_PROVIDER" in df.columns:
+        df["provider_id"] = (
+            df["REFERRING_PROVIDER"].astype(str).str.strip()
+            .str.replace(r"\.0$", "", regex=True)
+            .replace({"nan": None, "None": None, "": None, "0": None})
+        )
+    else:
+        # Fallback: manual coalesce if REFERRING_PROVIDER column missing
+        npi = df["REFERRING_PROVIDER_NPI"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True).replace({"nan": "", "None": "", "0": ""})
+        physician = df["REFERRING_PHYSICIAN"].astype(str).str.strip().replace({"nan": "", "None": ""})
+        df["provider_id"] = npi.where(npi != "", physician)
+        df.loc[df["provider_id"] == "", "provider_id"] = None
+
+    # --- Build patient display name (for visit prep only) ---
+    if "PATIENT_NAME_FIRST" in df.columns and "PATIENT_NAME_LAST" in df.columns:
+        df["patient_name"] = (
+            df["PATIENT_NAME_FIRST"].fillna("").astype(str).str.strip()
+            + " "
+            + df["PATIENT_NAME_LAST"].fillna("").astype(str).str.strip()
+        ).str.strip()
+        df.loc[df["patient_name"] == "", "patient_name"] = None
+
+    # --- Parse patient DOB ---
+    if "PATIENT_DOB" in df.columns:
+        df["PATIENT_DOB"] = pd.to_datetime(df["PATIENT_DOB"], errors="coerce")
+
+    # --- Drop raw PII columns (keep derived patient_name and PATIENT_DOB) ---
     pii_cols = [
         "PATIENT_NAME_FIRST", "PATIENT_NAME_LAST", "PATIENT_EMAIL",
-        "PATIENT_PHONE_NUMBER", "PATIENT_AGE", "REASON_FOR_REFERRAL",
+        "PATIENT_PHONE_NUMBER", "REASON_FOR_REFERRAL",
     ]
     df = df.drop(columns=[c for c in pii_cols if c in df.columns], errors="ignore")
 
@@ -38,7 +73,11 @@ def load_referrals() -> pd.DataFrame:
         if col in df.columns:
             df[col] = pd.to_datetime(df[col], errors="coerce")
 
-    # --- Clean zip codes to 5 digits, coalesce clinic zip → patient zip ---
+    # --- Filter out future-dated referrals ---
+    today = pd.Timestamp.now().normalize()
+    df = df[df["REFERRAL_DATE"] <= today]
+
+    # --- Clean zip codes to 5 digits, coalesce clinic zip -> patient zip ---
     def _clean_zip(series):
         return (
             series.astype(str)
@@ -68,12 +107,10 @@ def load_referrals() -> pd.DataFrame:
     df["visit_completed"] = df["APPOINTMENT_ID_FIRST_COMPLETED"].notna().astype(int)
 
     # --- Derive root cause fields for conversion deep dive ---
-    # Stage 1: why didn't intake start?
     df["outreach_status"] = "No outreach data"
     df.loc[df["IS_OUTREACH_CAMPAIGN_COMPLETED"] == 0, "outreach_status"] = "Outreach in progress"
     df.loc[df["IS_OUTREACH_CAMPAIGN_COMPLETED"] == 1, "outreach_status"] = "Outreach completed"
 
-    # Stage 2: why didn't they book?
     df["termination_category"] = "Other"
     tr = df["TERMINATION_REASON"].fillna("")
     df.loc[tr.str.contains("OON|OutOfNetwork|InsurancePlan", case=False, na=False), "termination_category"] = "Insurance OON"

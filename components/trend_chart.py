@@ -2,7 +2,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
-from data.transforms import compute_period_metrics
+from data.transforms import compute_period_metrics, count_unique_providers
 
 # Full color and lighter shade for incomplete period
 BAR_COLOR = "#4A90D9"
@@ -50,12 +50,31 @@ def render_trend_chart(df, period_col, group_col=None):
     is_weekly = period_col == "week_of"
     metrics = compute_period_metrics(df, period_col)
     provider_counts = (
-        df.groupby(period_col)["REFERRING_PHYSICIAN"]
-        .nunique()
+        df.groupby(period_col)["provider_id"]
+        .apply(count_unique_providers)
         .reset_index()
     )
     provider_counts.columns = [period_col, "providers"]
     provider_counts[period_col] = provider_counts[period_col].astype(str)
+
+    # Build a complete date spine so gaps show as 0
+    if len(metrics) >= 2:
+        if is_weekly:
+            # All Mondays from first to last, but not before Jan of the earliest year in data
+            first = pd.Timestamp(metrics[period_col].iloc[0])
+            last = pd.Timestamp(metrics[period_col].iloc[-1])
+            all_periods = pd.date_range(first, last, freq="W-MON").astype(str).tolist()
+        else:
+            first = pd.Period(metrics[period_col].iloc[0], freq="M")
+            last = pd.Period(metrics[period_col].iloc[-1], freq="M")
+            all_periods = [str(p) for p in pd.period_range(first, last, freq="M")]
+
+        spine = pd.DataFrame({period_col: all_periods})
+        metrics = spine.merge(metrics, on=period_col, how="left").fillna(0)
+        for col in ["referrals"]:
+            metrics[col] = metrics[col].astype(int)
+        provider_counts = spine.merge(provider_counts, on=period_col, how="left").fillna(0)
+        provider_counts["providers"] = provider_counts["providers"].astype(int)
 
     labels = _format_period_labels(metrics[period_col], is_weekly=is_weekly)
     n = len(labels)
@@ -106,50 +125,44 @@ def render_trend_chart(df, period_col, group_col=None):
         )
         st.plotly_chart(fig2, use_container_width=True, key=f"{_k}_prov")
 
-    # --- If grouped, show a stacked bar below for referral breakdown by group ---
-    if group_col:
-        top_groups = df[group_col].value_counts().head(8).index.tolist()
-        sub = df[df[group_col].isin(top_groups)]
-        grouped = sub.groupby([period_col, group_col]).agg(
-            referrals=("REFERRAL_ID", "count"),
-        ).reset_index()
-        grouped[period_col] = grouped[period_col].astype(str)
-        sorted_periods = sorted(grouped[period_col].unique())
-        grouped_labels = _format_period_labels(sorted_periods, is_weekly=is_weekly)
-        label_map = dict(zip(sorted_periods, grouped_labels))
-        last_period = sorted_periods[-1] if sorted_periods else None
-        grouped["period_label"] = grouped[period_col].map(label_map)
-
-        fig3 = go.Figure()
-        base_colors = px.colors.qualitative.Set2
-        for i, grp in enumerate(top_groups):
-            grp_data = grouped[grouped[group_col] == grp].sort_values(period_col)
-            base = base_colors[i % len(base_colors)]
-            # Lighten the last bar for each group
-            grp_colors = [
-                base if p != last_period else _lighten_hex(base, 0.45)
-                for p in grp_data[period_col]
-            ]
-            fig3.add_trace(go.Bar(
-                x=grp_data["period_label"],
-                y=grp_data["referrals"],
-                name=grp,
-                marker_color=grp_colors,
-                text=grp_data["referrals"],
-                textposition="auto",
-                textfont=dict(size=12),
-            ))
-        fig3.update_layout(
-            barmode="stack",
-            title="Referrals by Account",
-            yaxis=dict(title="Referrals"),
-            height=380,
-            margin=dict(t=50, b=30),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
-        )
-        st.plotly_chart(fig3, use_container_width=True, key=f"{_k}_grp")
-
     # --- Conversion Rate Trends ---
+    st.markdown("**Conversion Rates**")
+
+    # Conversion summary right below the title
+    if len(metrics) >= 3:
+        recent = metrics.tail(3)
+        rows = recent.to_dict("records")
+        # Last complete = second to last, prior = third to last, current partial = last
+        if len(rows) == 3:
+            prior, last_complete, current = rows[0], rows[1], rows[2]
+            prior_label = prior[period_col]
+            last_label = last_complete[period_col]
+            curr_label = current[period_col]
+
+            intake_delta = last_complete["pct_intake"] - prior["pct_intake"]
+            direction = "up" if intake_delta > 0 else "down"
+
+            parts = []
+            parts.append(
+                f"<b>Intake start rate</b> went {direction} from {prior['pct_intake']:.0%} ({prior_label}) "
+                f"to {last_complete['pct_intake']:.0%} ({last_label}), "
+                f"a <b>{abs(intake_delta):.1%}pp</b> {'improvement' if intake_delta > 0 else 'decline'}."
+            )
+
+            # Current partial month context
+            parts.append(
+                f"{curr_label} (in progress) is at {current['pct_intake']:.0%} intake, "
+                f"{current['pct_booked']:.0%} booked, {current['pct_completed']:.0%} completed "
+                f"— booked and completed rates will rise as appointments are fulfilled."
+            )
+
+            st.markdown(
+                '<div style="background-color: #f5f7fa; padding: 8px 14px; border-radius: 6px; font-size: 13px;">'
+                + " ".join(parts) + "</div>",
+                unsafe_allow_html=True,
+            )
+
+    # Conversion chart
     fig4 = go.Figure()
     conv_lines = [
         ("pct_intake", "% Intake Started", "#4A90D9"),
@@ -157,7 +170,6 @@ def render_trend_chart(df, period_col, group_col=None):
         ("pct_completed", "% Visit Completed", "#48B461"),
     ]
     for col, name, color in conv_lines:
-        # Lighter marker for the last (incomplete) point
         marker_colors = [color] * (n - 1) + [_lighten_hex(color, 0.45)] if n > 1 else [_lighten_hex(color, 0.45)]
         fig4.add_trace(go.Scatter(
             x=labels,
@@ -172,10 +184,9 @@ def render_trend_chart(df, period_col, group_col=None):
         ))
 
     fig4.update_layout(
-        title="Conversion Rates",
         yaxis=dict(tickformat=".0%"),
         height=350,
-        margin=dict(t=50, b=60),
+        margin=dict(t=20, b=60),
         legend=dict(orientation="h", yanchor="top", y=-0.15, xanchor="center", x=0.5),
     )
     st.plotly_chart(fig4, use_container_width=True, key=f"{_k}_conv")

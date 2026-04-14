@@ -2,56 +2,38 @@ import streamlit as st
 from components.geo_map import render_geo_map
 from components.kpi_row import render_kpi_row
 from components.entity_table import render_entity_table
-from components.category_sections import render_category_sections
 from components.trend_chart import render_trend_chart
 
 
-def render(df, period_col, entity_col, entity_label):
-    # Account filter for the map
+def render(df, period_col):
     accounts = sorted(df["PARTNER_ASSIGNMENT"].unique().tolist())
     selected_accounts = st.multiselect(
-        "Filter by account(s)",
-        options=accounts,
-        default=None,
-        placeholder="All accounts — type to search...",
-        key="geo_acct_filter",
+        "Filter by account(s)", options=accounts, default=None,
+        placeholder="All accounts — type to search...", key="geo_acct_filter",
     )
-
-    if selected_accounts:
-        map_df = df[df["PARTNER_ASSIGNMENT"].isin(selected_accounts)]
-    else:
-        map_df = df
+    map_df = df[df["PARTNER_ASSIGNMENT"].isin(selected_accounts)] if selected_accounts else df
 
     st.subheader("Referral Map by Zip Code")
-    st.caption("Bubble size = referral volume. Color: green = high booking rate, red = low. Hover for partner breakdown.")
+    color_mode = st.radio("Color by", ["Conversion rate", "Account"], horizontal=True, key="geo_color_mode")
+    color_by_account = color_mode == "Account"
+    caption = "Bubble size = referral volume. Color: by dominant account." if color_by_account else "Bubble size = referral volume. Color: green = high booking rate, red = low."
+    st.caption(caption + " Hover for partner breakdown.")
+    render_geo_map(map_df, color_by_account=color_by_account)
 
-    map_data = render_geo_map(map_df)
-
-    # KPIs for the filtered geography
     render_kpi_row(map_df, period_col)
 
-    # Zip code filter
     zips = sorted(map_df["REFERRING_CLINIC_ZIP"].dropna().unique().tolist())
     selected_zips = st.multiselect("Filter by zip code(s)", zips, key="geo_zips")
+    filtered = map_df[map_df["REFERRING_CLINIC_ZIP"].isin(selected_zips)] if selected_zips else map_df
 
-    if selected_zips:
-        filtered = map_df[map_df["REFERRING_CLINIC_ZIP"].isin(selected_zips)]
-    else:
-        filtered = map_df
-
-    # Trend charts for selected geography
     render_trend_chart(filtered, period_col)
 
-    # Entity table and categories
-    suffix = ""
-    if selected_zips:
-        suffix = f" in {', '.join(selected_zips[:3])}{'...' if len(selected_zips) > 3 else ''}"
-    if selected_accounts:
-        suffix += f" ({', '.join(selected_accounts[:2])}{'...' if len(selected_accounts) > 2 else ''})"
+    # Inline entity toggle
+    entity_focus = st.radio("View by", ["Clinics", "Providers"], horizontal=True, key="geo_entity_toggle")
+    entity_col = "REFERRING_CLINIC" if entity_focus == "Clinics" else "REFERRING_PHYSICIAN"
+    entity_label = "Clinic" if entity_focus == "Clinics" else "Provider"
 
     geo_multi_acct = not selected_accounts or len(selected_accounts) > 1
-    st.subheader(f"Top {entity_label}s{suffix}")
+    suffix = f" in {', '.join(selected_zips[:3])}{'...' if len(selected_zips) > 3 else ''}" if selected_zips else ""
+    st.subheader(f"{entity_label} Rankings{suffix}")
     render_entity_table(filtered, entity_col, period_col, label=entity_label, include_account=geo_multi_acct)
-
-    st.subheader(f"{entity_label} Categories{suffix}")
-    render_category_sections(filtered, entity_col, period_col, label=entity_label, key_prefix="geo", include_account=geo_multi_acct)
