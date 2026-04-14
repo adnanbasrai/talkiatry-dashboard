@@ -1,12 +1,40 @@
+import os
 import pandas as pd
 import streamlit as st
 from config import DATA_PATH
 
 
-@st.cache_data
+def _load_from_gsheets():
+    """Load data from Google Sheets using service account credentials."""
+    try:
+        import gspread
+        from google.oauth2.service_account import Credentials
+        from config import GSHEET_URL
+
+        creds_dict = dict(st.secrets["gcp_service_account"])
+        creds = Credentials.from_service_account_info(
+            creds_dict,
+            scopes=["https://www.googleapis.com/auth/spreadsheets.readonly"],
+        )
+        gc = gspread.authorize(creds)
+        sh = gc.open_by_url(GSHEET_URL)
+        data = sh.sheet1.get_all_records()
+        return pd.DataFrame(data)
+    except Exception as e:
+        st.warning(f"Could not load from Google Sheets: {e}")
+        return None
+
+
+@st.cache_data(ttl=3600)
 def load_referrals() -> pd.DataFrame:
-    """Load and clean the consolidated referral CSV."""
-    df = pd.read_csv(DATA_PATH, low_memory=False)
+    """Load referral data. Uses local CSV if available, falls back to Google Sheets."""
+    if os.path.exists(DATA_PATH):
+        df = pd.read_csv(DATA_PATH, low_memory=False)
+    else:
+        df = _load_from_gsheets()
+        if df is None:
+            st.error("No data source available. Place the CSV in Downloads or configure Google Sheets.")
+            return pd.DataFrame()
 
     # --- Rename duplicate columns (handle both .1 and _1 suffixes) ---
     rename_map = {}

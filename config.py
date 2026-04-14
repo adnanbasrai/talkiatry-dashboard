@@ -3,6 +3,9 @@ import os
 # Data source
 DATA_PATH = os.path.expanduser("~/Downloads/NE Control Tower Query_2026-04-14-1721.csv")
 
+# Google Sheets config (used on Streamlit Cloud)
+GSHEET_URL = "https://docs.google.com/spreadsheets/d/12yu3f0sPq1knIknN5HeFa4cqJIw2V0ruBoJrux8kmlw"
+
 # PII columns to drop on load
 PII_COLUMNS = [
     "PATIENT_NAME_FIRST", "PATIENT_NAME_LAST", "PATIENT_EMAIL",

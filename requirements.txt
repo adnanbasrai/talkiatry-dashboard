@@ -4,3 +4,6 @@ plotly>=5.18.0
 pydeck>=0.8.0
 pgeocode>=0.4.0
 openpyxl>=3.1.0
+gspread>=6.0.0
+google-auth>=2.0.0
+fpdf2>=2.7.0
