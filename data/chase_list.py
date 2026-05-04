@@ -100,11 +100,3 @@ def load_chase_list() -> pd.DataFrame:
     # Geocode by zip (deferred — caller should merge after geocoding to avoid
     # importing geo_map here and creating a circular dep)
     return df
-
-
-def get_chase_for_ppm(chase_df: pd.DataFrame, ppm: str) -> pd.DataFrame:
-    """Return chase list rows for a specific PPM, sorted by lifecycle priority desc."""
-    if chase_df.empty:
-        return pd.DataFrame()
-    sub = chase_df[chase_df["ppm"] == ppm].copy()
-    return sub.sort_values("lifecycle_rank", ascending=False).reset_index(drop=True)

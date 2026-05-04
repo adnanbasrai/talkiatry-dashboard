@@ -16,6 +16,7 @@ import streamlit as st
 from functools import partial
 
 from data.transforms import compute_account_signals_table, last_complete_periods
+from data.constants import INTAKE_HEALTHY, INTAKE_WATCH, BOOKED_HEALTHY, BOOKED_WATCH, M1_STRONG, M1_MODERATE
 
 # ── Colour palette ────────────────────────────────────────────────────────────
 _STATUS_BG: dict[str, str] = {
@@ -244,15 +245,15 @@ def render_account_signals_table(df: pd.DataFrame, period_col: str, toggle_key: 
         styled = disp.style.applymap(_style_signed, subset=delta_cols)
         # Color absolute metric columns by threshold
         styled = styled.applymap(
-            partial(_style_abs_threshold, healthy=0.55, watch=0.45),
+            partial(_style_abs_threshold, healthy=INTAKE_HEALTHY, watch=INTAKE_WATCH),
             subset=["Ref→Intake"],
         ).applymap(
-            partial(_style_abs_threshold, healthy=0.35, watch=0.25),
+            partial(_style_abs_threshold, healthy=BOOKED_HEALTHY, watch=BOOKED_WATCH),
             subset=["Ref→Booked"],
         )
         if is_monthly:
             styled = styled.applymap(
-                partial(_style_abs_threshold, healthy=0.35, watch=0.25),
+                partial(_style_abs_threshold, healthy=M1_STRONG, watch=M1_MODERATE),
                 subset=["M1 Retention"],
             )
 

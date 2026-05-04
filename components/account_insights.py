@@ -29,6 +29,13 @@ import pandas as pd
 from dataclasses import dataclass, field
 from typing import Literal
 from data.transforms import last_complete_periods, _count_weekdays
+from data.constants import (
+    INTAKE_HEALTHY as _INTAKE_WATCH, INTAKE_WATCH as _INTAKE_AT_RISK,
+    BOOKED_HEALTHY as _BOOKED_WATCH, BOOKED_WATCH as _BOOKED_AT_RISK,
+    M1_STRONG as _M1_MODERATE, M1_MODERATE as _M1_LOW,
+    TREND_DECLINING as _TREND_DECLINING, TREND_GROWING as _TREND_GROWING,
+    MOM_DROP_PP as _MOM_DROP_PP, MIN_REFS as _MIN_REFS, MIN_COHORT as _MIN_COHORT,
+)
 
 Sentiment = Literal["negative", "warning", "positive"]
 
@@ -58,19 +65,6 @@ class AccountInsight:
     priority: int = 0
 
 
-# ── Thresholds (mirror the Account Signals table) ─────────────────────────────
-_INTAKE_WATCH    = 0.55    # Ref→Intake: < 55% = Watch or worse
-_INTAKE_AT_RISK  = 0.45    # Ref→Intake: < 45% = At Risk
-_BOOKED_WATCH    = 0.35    # Ref→Booked (of total refs): < 35% = Watch or worse
-_BOOKED_AT_RISK  = 0.25    # Ref→Booked (of total refs): < 25% = At Risk
-_M1_MODERATE     = 0.35    # M1 Retention: < 35% = Moderate or worse
-_M1_LOW          = 0.25    # M1 Retention: < 25% = Low
-_TREND_DECLINING = -0.10   # Refs/Day MoM: < -10% = declining signal
-_TREND_GROWING   =  0.20   # Refs/Day MoM: > +20% = positive signal
-_MOM_DROP_PP     = -0.03   # MoM change: < -3pp = noteworthy drop
-_MIN_REFS        = 5       # minimum refs for a signal to fire / to show a clinic
-_MIN_COHORT      = 3       # minimum intake starters for booked-rate signal
-
 
 # ── Internal helpers ──────────────────────────────────────────────────────────
 
@@ -86,7 +80,7 @@ def _period_str(period, period_col: str) -> str:
 
 
 def _wdays(period, period_col: str) -> int:
-    """Number of working days in the period (Mon–Fri minus US federal holidays)."""
+    """Number of business days in the period."""
     try:
         if period_col == "month_of":
             start = pd.Period(period, freq="M").start_time

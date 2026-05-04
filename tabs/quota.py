@@ -1,50 +1,16 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-from data.transforms import count_unique_providers
+from data.transforms import count_unique_providers, wdays as _wdays
+from data.quotas import QUOTA_PERIODS, ACTIVE_QUOTA_PERIOD
 
-# ── Q2 2026 full-quarter quotas ────────────────────────────────────────────────
-Q2_QUOTAS = {
-    # Northeast
-    "Luke Young":          {"providers": 685,  "referrals": 1513, "visits": 542},
-    "Danielle Maddi":      {"providers": 218,  "referrals": 481,  "visits": 173},
-    "Christopher Breen":   {"providers": 153,  "referrals": 337,  "visits": 122},
-    "Brittany Smith":      {"providers": 190,  "referrals": 419,  "visits": 151},
-    "Ashley Alexander":    {"providers": 315,  "referrals": 695,  "visits": 250},
-    # West
-    "Zane Culver":         {"providers": 325,  "referrals": 718,  "visits": 257},
-    "Stephanie Campos":    {"providers": 331,  "referrals": 730,  "visits": 262},
-    "Russell Whittaker":   {"providers": 126,  "referrals": 279,  "visits": 99},
-    "Kailye Bachman":      {"providers": 190,  "referrals": 419,  "visits": 150},
-    "John Yee":            {"providers": 137,  "referrals": 303,  "visits": 108},
-    "Jenny Miller":        {"providers": 153,  "referrals": 337,  "visits": 122},
-    "Brooke Garlick":      {"providers": 258,  "referrals": 570,  "visits": 204},
-    "Alisyn Rogers":       {"providers": 526,  "referrals": 1161, "visits": 416},
-    # Central
-    "Rachel LaTourette":   {"providers": 308,  "referrals": 681,  "visits": 243},
-    "Marcus Lightford":    {"providers": 258,  "referrals": 568,  "visits": 205},
-    "Marc Lansing":        {"providers": 288,  "referrals": 636,  "visits": 227},
-    "Jack Kushner":        {"providers": 155,  "referrals": 342,  "visits": 123},
-    "Elizabeth Grados":    {"providers": 157,  "referrals": 347,  "visits": 124},
-    "AnaCristina Ojeda":   {"providers": 215,  "referrals": 474,  "visits": 171},
-    "Alex Hale":           {"providers": 230,  "referrals": 508,  "visits": 181},
-}
+# ── Load active quota period config ───────────────────────────────────────────
+period_cfg = QUOTA_PERIODS[ACTIVE_QUOTA_PERIOD]
+Q2_START   = period_cfg["start"]
+Q2_END     = period_cfg["end"]
+Q2_MONTHS  = list(pd.period_range(Q2_START, Q2_END, freq="M"))
+Q2_QUOTAS  = period_cfg["targets"]
 
-Q2_START  = pd.Timestamp("2026-04-01")
-Q2_END    = pd.Timestamp("2026-06-30")
-Q2_MONTHS = [pd.Period("2026-04", "M"), pd.Period("2026-05", "M"), pd.Period("2026-06", "M")]
-
-MONTH_LABELS = {
-    pd.Period("2026-04", "M"): "April (M1)",
-    pd.Period("2026-05", "M"): "May (M2)",
-    pd.Period("2026-06", "M"): "June (M3)",
-}
-
-# ── Working-day helpers ────────────────────────────────────────────────────────
-
-def _wdays(start: pd.Timestamp, end: pd.Timestamp) -> int:
-    """Business days from start (inclusive) through end (inclusive)."""
-    return max(int(np.busday_count(start.date(), (end + pd.Timedelta(days=1)).date())), 1)
+MONTH_LABELS = {m: m.strftime("%B") + f" (M{i+1})" for i, m in enumerate(Q2_MONTHS)}
 
 
 @st.cache_data
@@ -89,7 +55,7 @@ def _fmt_cell(actual: int, quota: int, pct: float) -> str:
 
 @st.fragment
 def render(df):
-    st.subheader("Q2 2026 Quota Attainment")
+    st.subheader(f"{period_cfg['label']} Quota Attainment")
 
     fracs = _quarter_wday_fractions()
     q_wdays = fracs["total_wdays"]
@@ -97,7 +63,8 @@ def render(df):
     month_frac  = fracs["month_frac"]
 
     # ── Period selector ────────────────────────────────────────────────────────
-    options = ["Full Quarter", "April (M1)", "May (M2)", "June (M3)"]
+    month_options = [MONTH_LABELS[m] for m in Q2_MONTHS]
+    options = ["Full Quarter"] + month_options
     period_sel = st.segmented_control(
         "View period",
         options=options,
@@ -109,25 +76,21 @@ def render(df):
         period_sel = "Full Quarter"
 
     # Map selection → month period (None = full quarter)
-    sel_to_month = {
-        "Full Quarter": None,
-        "April (M1)":   pd.Period("2026-04", "M"),
-        "May (M2)":     pd.Period("2026-05", "M"),
-        "June (M3)":    pd.Period("2026-06", "M"),
-    }
-    sel_month = sel_to_month[period_sel]
+    label_to_month = {MONTH_LABELS[m]: m for m in Q2_MONTHS}
+    sel_month = label_to_month.get(period_sel, None)
 
     # ── Quota scaling note ─────────────────────────────────────────────────────
+    label = period_cfg["label"]
     if sel_month is not None:
         frac   = month_frac[sel_month]
         m_wday = month_wdays[sel_month]
         note = (
             f"Monthly quota = full-quarter quota × ({m_wday} working days in {sel_month.strftime('%B')} "
-            f"÷ {q_wdays} Q2 working days) = <b>{frac:.1%}</b> of Q2 quota."
+            f"÷ {q_wdays} {label} working days) = <b>{frac:.1%}</b> of {label} quota."
         )
     else:
         note = (
-            f"Full Q2 2026 quota (April–June). Q2 has <b>{q_wdays} working days</b>. "
+            f"Full {label} quota. {label} has <b>{q_wdays} working days</b>. "
             "Switch to a monthly view to see proportional targets."
         )
 
@@ -141,7 +104,7 @@ def render(df):
     # ── Filter data ────────────────────────────────────────────────────────────
     q2 = df[(df["REFERRAL_DATE"] >= Q2_START) & (df["REFERRAL_DATE"] <= Q2_END)]
     if q2.empty:
-        st.warning("No Q2 2026 data available yet.")
+        st.warning(f"No {label} data available yet.")
         return
 
     region_ppms = set(df["PPM"].dropna().unique())
@@ -246,13 +209,13 @@ def render(df):
 
     if sel_month is None:
         st.caption(
-            "Full Q2 progress. Unique providers are counted monthly "
-            "(a provider referring in April and May counts as 2). "
-            "Q2 ends June 30, 2026."
+            f"Full {label} progress. Unique providers are counted monthly "
+            f"(a provider referring in multiple months counts once per month). "
+            f"{label} ends {Q2_END.strftime('%B %-d, %Y')}."
         )
     else:
         st.caption(
             f"{sel_month.strftime('%B %Y')} actuals vs proportional monthly target "
-            f"({month_wdays[sel_month]} of {q_wdays} Q2 working days = "
-            f"{month_frac[sel_month]:.1%} of Q2 quota)."
+            f"({month_wdays[sel_month]} of {q_wdays} {label} working days = "
+            f"{month_frac[sel_month]:.1%} of {label} quota)."
         )

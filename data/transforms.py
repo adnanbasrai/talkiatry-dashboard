@@ -1,5 +1,11 @@
 import pandas as pd
 import numpy as np
+from data.constants import (
+    INTAKE_HEALTHY, INTAKE_WATCH, BOOKED_HEALTHY, BOOKED_WATCH,
+    M1_STRONG, M1_MODERATE, MIN_REFS, MIN_COHORT,
+    TREND_DECLINING, TREND_GROWING, MOM_DROP_PP,
+    PCT_TIERS, DEFAULT_WDAYS_MONTH,
+)
 
 
 def count_unique_providers(series: pd.Series) -> int:
@@ -94,6 +100,10 @@ def _count_weekdays(start: pd.Timestamp, end: pd.Timestamp) -> int:
         holidays.extend(_us_holidays(y))
     holiday_dates = np.array([np.datetime64(h) for h in holidays])
     return max(int(np.busday_count(start.date(), end.date(), holidays=holiday_dates)), 1)
+
+
+# Public alias — use this name in new code; _count_weekdays preserved for back-compat.
+wdays = _count_weekdays
 
 
 def compute_velocity(df: pd.DataFrame, period_col: str) -> dict:
@@ -274,23 +284,21 @@ def compute_account_signals_table(df: pd.DataFrame, period_col: str, rank_df=Non
                 end   = start + pd.Timedelta(days=7)
             return max(_count_weekdays(start, end), 1)
         except Exception:
-            return 22
+            return DEFAULT_WDAYS_MONTH
 
     curr_days = _workdays(curr_period)
     prev_days = _workdays(prev_period) if prev_period is not None else None
 
-    # ── Thresholds (mirrors generate_ne_signals.py) ───────────────────────────
-    INTAKE_ABS  = {"HEALTHY": 0.55, "WATCH": 0.45}
-    BOOKED_ABS  = {"HEALTHY": 0.35, "WATCH": 0.25}  # % of total refs (matches Omni)
-    M1_ABS      = {"STRONG": 0.35, "MODERATE": 0.25}
-    MIN_REFS    = 5
-    MIN_COHORT  = 3
-    PCT_TIERS   = [("STRONG", 80), ("GROWING", 60), ("FLAT", 40), ("DECLINING", 20), ("AT RISK", 0)]
+    # ── Thresholds (from data.constants) ─────────────────────────────────────
+    INTAKE_ABS  = {"HEALTHY": INTAKE_HEALTHY, "WATCH": INTAKE_WATCH}
+    BOOKED_ABS  = {"HEALTHY": BOOKED_HEALTHY, "WATCH": BOOKED_WATCH}  # % of total refs (matches Omni)
+    M1_ABS      = {"STRONG": M1_STRONG, "MODERATE": M1_MODERATE}
+    _PCT_TIERS  = [("STRONG", 80), ("GROWING", 60), ("FLAT", 40), ("DECLINING", 20), ("AT RISK", 0)]
 
     def _pct_status(rank):
         if rank is None or (isinstance(rank, float) and np.isnan(rank)):
             return "N/A"
-        for label, threshold in PCT_TIERS:
+        for label, threshold in _PCT_TIERS:
             if rank >= threshold:
                 return label
         return "AT RISK"

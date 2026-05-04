@@ -18,13 +18,13 @@ def render(df, period_col):
     mode = st.radio("Mode", ["Look up existing clinic", "Prospect new clinics"], horizontal=True, key="vp_top_mode")
 
     if mode == "Look up existing clinic":
-        _render_existing_lookup(df, period_col)
+        _render_clinic_briefing(df, period_col)
     else:
-        _render_prospect_clinics(df, period_col)
+        _render_prospect_importer(df, period_col)
 
 
-def _render_existing_lookup(df, period_col):
-    """Original visit prep: search existing clinics or zips."""
+def _render_clinic_briefing(df, period_col):
+    """Existing clinic lookup — shows KPIs, recent referrals, nearby clinics map."""
     st.subheader("Visit Prep")
     st.caption("Search for a clinic or zip code to get a briefing before your visit.")
 
@@ -80,7 +80,7 @@ def _render_existing_lookup(df, period_col):
             )
 
     if target_clinic:
-        _render_clinic_briefing(df, target_clinic, period_col)
+        _render_clinic_card(df, target_clinic, period_col)
         _render_recent_patients(df, target_clinic)
 
     if search_mode == "Zip Code" and target_zip:
@@ -130,8 +130,8 @@ def _render_existing_lookup(df, period_col):
     # PDF export already at top of page
 
 
-def _render_prospect_clinics(df, period_col):
-    """Import new/prospect clinics and generate intel briefings."""
+def _render_prospect_importer(df, period_col):
+    """New prospect clinic importer — NPI search, add to chase list."""
     st.subheader("Prospect New Clinics")
     st.caption("Import clinics you're planning to visit. We'll find nearby referring clinics and providers within 3 miles.")
 
@@ -244,9 +244,6 @@ def _render_prospect_clinics(df, period_col):
             else:
                 st.caption(f"No primary care providers found in NPI registry for zip {zip_code}")
 
-        # --- HubSpot: contacts matching this clinic ---
-        _render_hubspot_contacts(name)
-
         if not nearby.empty:
             # Map
             render_nearby_map(lat, lng, name, nearby)
@@ -282,33 +279,6 @@ def _render_prospect_clinics(df, period_col):
             st.caption("No referring clinics found within 3 miles.")
 
         st.divider()
-
-
-def _render_hubspot_contacts(clinic_name):
-    """Search HubSpot for contacts matching a clinic name."""
-    try:
-        from mcp__77db18e3_b3ff_4107_9ade_fee0218b6388 import search_crm_objects
-        # This would be called via MCP tools at runtime
-        # For now, show a placeholder that can be wired up
-    except ImportError:
-        pass
-
-    # Use session state to avoid redundant searches
-    key = f"hs_search_{clinic_name}"
-    if key not in st.session_state:
-        st.session_state[key] = None
-
-    with st.expander(f"HubSpot contacts for {clinic_name}"):
-        st.caption("Search HubSpot for existing contacts at this clinic.")
-        if st.button(f"Search HubSpot", key=f"hs_btn_{hash(clinic_name)}"):
-            st.session_state[key] = "searching"
-
-        if st.session_state.get(key) == "searching":
-            st.info(
-                "HubSpot search requires the MCP connector. "
-                "Use the HubSpot search tool in your CLI to query: "
-                f"`company name contains '{clinic_name}'` and look for associated contacts."
-            )
 
 
 def _get_referral_status(row):
@@ -445,8 +415,8 @@ def _render_recent_patients(df, clinic_name):
         st.caption(" · ".join(summary_parts))
 
 
-def _render_clinic_briefing(df, clinic_name, period_col):
-    """Render the clinic briefing card."""
+def _render_clinic_card(df, clinic_name, period_col):
+    """Render the clinic briefing card (KPIs, top providers, trend chart)."""
     clinic_df = df[df["REFERRING_CLINIC"] == clinic_name]
     if clinic_df.empty:
         return
