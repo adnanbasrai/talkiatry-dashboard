@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 
 
+@st.fragment
 def render(df, period_col):
     st.subheader("Raw Data Explorer")
 
@@ -17,7 +18,7 @@ def render(df, period_col):
         clinics = sorted(df["REFERRING_CLINIC"].dropna().unique().tolist())
         clinic = st.selectbox("Clinic", clinics, index=None, placeholder="All — type to search...", key="raw_clinic")
     with col4:
-        providers = sorted(df["provider_id"].dropna().unique().tolist())
+        providers = sorted(df["REFERRING_PHYSICIAN"].dropna().unique().tolist())
         provider = st.selectbox("Provider", providers, index=None, placeholder="All — type to search...", key="raw_provider")
 
     filtered = df.copy()
@@ -28,24 +29,28 @@ def render(df, period_col):
     if clinic:
         filtered = filtered[filtered["REFERRING_CLINIC"] == clinic]
     if provider:
-        filtered = filtered[filtered["provider_id"] == provider]
+        filtered = filtered[filtered["REFERRING_PHYSICIAN"] == provider]
 
     # Display columns (exclude internal/derived, keep useful ones)
     display_cols = [
         "REFERRAL_DATE", "REFERRAL_ID", "PARTNER_ASSIGNMENT", "PPM",
         "REFERRING_CLINIC", "REFERRING_CLINIC_ZIP", "provider_id",
-        "REFERRING_PHYSICIAN", "REFERRAL_SOURCE_TYPE",
+        "REFERRING_PHYSICIAN", "patient_name", "PATIENT_DOB",
+        "REFERRAL_SOURCE_TYPE",
         "PATIENT_INSURANCE_NAME", "intake_started", "visit_booked", "visit_completed",
         "INTAKE_ACTION_STATUS", "TERMINATION_REASON",
         "APPOINTMENT_SOURCE_FIRST_SCHEDULED", "TEAM_TYPE",
     ]
     display_cols = [c for c in display_cols if c in filtered.columns]
 
-    st.caption(f"{len(filtered):,} rows")
-    st.dataframe(
-        filtered[display_cols].sort_values("REFERRAL_DATE", ascending=False).reset_index(drop=True),
-        use_container_width=True, hide_index=True, height=600,
-    )
+    # Format dates to remove time portion
+    display_df = filtered[display_cols].sort_values("REFERRAL_DATE", ascending=False).reset_index(drop=True).copy()
+    for date_col in ["REFERRAL_DATE", "PATIENT_DOB"]:
+        if date_col in display_df.columns:
+            display_df[date_col] = pd.to_datetime(display_df[date_col]).dt.strftime("%Y-%m-%d")
 
-    csv = filtered[display_cols].to_csv(index=False)
+    st.caption(f"{len(display_df):,} rows")
+    st.dataframe(display_df, use_container_width=True, hide_index=True, height=600)
+
+    csv = display_df.to_csv(index=False)
     st.download_button("Export filtered data as CSV", csv, "filtered_data.csv", "text/csv", key="raw_export")

@@ -1,7 +1,7 @@
 import os
 
 # Data source
-DATA_PATH = os.path.expanduser("~/Downloads/NE Control Tower Query_2026-04-14-1721.csv")
+DATA_PATH = os.path.expanduser("~/Claude Projects/talkiatry-dashboard/data/NE_control_tower.csv")  # copied from Downloads to avoid macOS sandbox lock
 
 # Google Sheets config (used on Streamlit Cloud)
 GSHEET_URL = "https://docs.google.com/spreadsheets/d/12yu3f0sPq1knIknN5HeFa4cqJIw2V0ruBoJrux8kmlw"

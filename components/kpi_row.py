@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from data.transforms import compute_metrics
+from data.transforms import compute_metrics, last_complete_periods
 
 
 def _enrich_provider_detail(agg_df, source_df, include_account):
@@ -127,14 +127,10 @@ def render_kpi_row(df, period_col):
         return
 
     is_weekly = period_col == "week_of"
-    period_label = "last week" if is_weekly else "last month"
 
-    if len(periods) >= 2:
-        curr_period = periods[-2]
-        prev_period = periods[-3] if len(periods) >= 3 else None
-    else:
-        curr_period = periods[-1]
-        prev_period = None
+    curr_period, prev_period, _ = last_complete_periods(periods, period_col)
+    if curr_period is None:
+        curr_period = periods[-1] if periods else None
 
     curr_df = df[df[period_col] == curr_period]
     prev_df = df[df[period_col] == prev_period] if prev_period is not None else None
@@ -142,7 +138,7 @@ def render_kpi_row(df, period_col):
     m = compute_metrics(curr_df)
     m_prev = compute_metrics(prev_df) if prev_df is not None and len(prev_df) > 0 else None
 
-    # Format period header
+    # Format period names
     try:
         dt = pd.Timestamp(str(curr_period))
         if is_weekly:
@@ -152,6 +148,20 @@ def render_kpi_row(df, period_col):
             header = dt.strftime("%B %Y")
     except Exception:
         header = str(curr_period)
+
+    if prev_period is not None:
+        try:
+            dt_prev = pd.Timestamp(str(prev_period))
+            if is_weekly:
+                prev_monday = dt_prev - pd.Timedelta(days=dt_prev.weekday())
+                period_label = f"week of {prev_monday.strftime('%b %d')}"
+            else:
+                period_label = dt_prev.strftime("%b %Y")
+        except Exception:
+            period_label = str(prev_period)
+    else:
+        period_label = "prior period"
+
     st.caption(header)
 
     cols = st.columns(5)
@@ -174,14 +184,25 @@ def render_kpi_row(df, period_col):
         display = f"{val:.1%}" if is_pct else f"{val:,.0f}"
         col.metric(label, display, delta)
 
+    # --- Terminated footnote (contextualises conversion rates) ---
+    n_term = round(m.get("pct_terminated", 0) * m["referrals"])
+    if n_term > 0:
+        st.caption(
+            f"ℹ️ **{n_term:,} terminated referral{'s' if n_term != 1 else ''}** "
+            f"({m['pct_terminated']:.1%} of total) are included in conversion rates above — "
+            f"screened out for clinical or insurance reasons."
+        )
+
     # --- Drill-down popovers below the metrics ---
     if prev_df is not None and len(prev_df) > 0:
         drill_cols = st.columns(5)
 
         # Col 1: Provider change detail
+        # "New" = referred in the last complete period but never in the entire date range before that
         with drill_cols[1]:
             include_acct = curr_df["PARTNER_ASSIGNMENT"].nunique() > 1
-            new_provs, lost_provs = _provider_change_detail(curr_df, prev_df, include_account=include_acct)
+            all_prior_df = df[df[period_col] < curr_period]
+            new_provs, lost_provs = _provider_change_detail(curr_df, all_prior_df, include_account=include_acct)
 
             with st.popover("View provider change detail", use_container_width=True):
                 tab_new, tab_lost = st.tabs([
@@ -189,13 +210,13 @@ def render_kpi_row(df, period_col):
                     f"Lost Providers ({len(lost_provs)})",
                 ])
                 with tab_new:
-                    st.caption(f"{len(new_provs)} providers referring this period who did not refer {period_label}")
+                    st.caption(f"{len(new_provs)} providers who referred in {header} but never before in the selected date range")
                     if new_provs.empty:
                         st.info("No new providers.")
                     else:
                         st.dataframe(new_provs.reset_index(drop=True), use_container_width=True, hide_index=True, height=500)
                 with tab_lost:
-                    st.caption(f"{len(lost_provs)} providers who referred {period_label} but not this period")
+                    st.caption(f"{len(lost_provs)} providers who referred in {period_label} but not in {header}")
                     if lost_provs.empty:
                         st.info("No lost providers.")
                     else:

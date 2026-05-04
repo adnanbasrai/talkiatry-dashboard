@@ -4,6 +4,7 @@ import plotly.express as px
 import pandas as pd
 
 
+@st.fragment
 def render(df, period_col):
     # Inline entity toggle for drill-downs
     entity_focus = st.radio("Drill down by", ["Clinics", "Providers"], horizontal=True, key="conv_entity_toggle")

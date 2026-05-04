@@ -1,0 +1,1889 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_aac35bcea45ade03dd731c37032fea77 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+</head>
+<body>
+    
+    
+<div style="position:fixed;bottom:30px;left:30px;z-index:1000;background:white;
+     padding:14px 18px;border-radius:8px;border:1px solid #ccc;
+     font-family:Arial,sans-serif;font-size:13px;box-shadow:2px 2px 6px rgba(0,0,0,.15)">
+  <b style="font-size:14px">Trinity Health NE — Chase Map</b><br><br>
+  <span style="display:inline-block;width:16px;height:16px;border-radius:50%;
+    background:#27ae60;border:2px solid #1a7a2e;margin-right:7px;vertical-align:middle"></span>
+    <b>Referring</b> (43 FACT clinics)<br><br>
+  <span style="display:inline-block;width:11px;height:11px;border-radius:50%;
+    background:#f1c40f;border:1.5px solid #b8860b;margin-right:7px;vertical-align:middle"></span>
+    <b>Not Yet Referring</b> (68 practices)
+</div>
+    
+            <div class="folium-map" id="map_aac35bcea45ade03dd731c37032fea77" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_aac35bcea45ade03dd731c37032fea77 = L.map(
+                "map_aac35bcea45ade03dd731c37032fea77",
+                {
+                    center: [41.75, -72.75],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 9,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_a44e1a115f6577e7f4684faf66ddc948 = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 20,
+  "maxNativeZoom": 20,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\"https://carto.com/attributions\"\u003eCARTO\u003c/a\u003e",
+  "subdomains": "abcd",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_a44e1a115f6577e7f4684faf66ddc948.addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            var circle_marker_7fa36667e751d49851ee6cf49e3218e3 = L.circleMarker(
+                [41.72570901402608, -72.80083736856567],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_7fa36667e751d49851ee6cf49e3218e3.bindTooltip(
+                `<div>
+                     <b>11 South Rd Building</b><br>9 referrals · ZIP 06030<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_3e9ab191c24e03360696a277354572b1 = L.circleMarker(
+                [42.113721086003096, -72.59664334026722],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_3e9ab191c24e03360696a277354572b1.bindTooltip(
+                `<div>
+                     <b>175 Carew St Building</b><br>179 referrals · ZIP 01199<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_baff4d8300d89f001ff921f1cf9a8a50 = L.circleMarker(
+                [41.83187416952367, -72.724625048054],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_baff4d8300d89f001ff921f1cf9a8a50.bindTooltip(
+                `<div>
+                     <b>2 Concorde Way Building</b> ⚠️<br>32 referrals · ZIP 06002<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_7d627758d2cf609670a3cfc65862a04a = L.circleMarker(
+                [41.713416907064065, -72.5996792280627],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_7d627758d2cf609670a3cfc65862a04a.bindTooltip(
+                `<div>
+                     <b>27 Sycamore Commons Building</b><br>29 referrals · ZIP 06033<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_cb3576479ff61b5df4cc339463ac3dae = L.circleMarker(
+                [42.11472463053755, -72.59230079825198],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_cb3576479ff61b5df4cc339463ac3dae.bindTooltip(
+                `<div>
+                     <b>300 Stafford St Building</b><br>1 referrals · ZIP 01104<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_a2acdf7646054e50eaad1de2d112250c = L.circleMarker(
+                [41.471164555055196, -73.22301638239655],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_a2acdf7646054e50eaad1de2d112250c.bindTooltip(
+                `<div>
+                     <b>385 Main St South</b><br>54 referrals · ZIP 06488<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_c9f11f7b02d7b632f2f39a7ad1b76e11 = L.circleMarker(
+                [41.768551056196735, -72.70146816463605],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_c9f11f7b02d7b632f2f39a7ad1b76e11.bindTooltip(
+                `<div>
+                     <b>428 Hartford Turnpike Building</b> ⚠️<br>2 referrals · ZIP 06105<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_e9399a561708daa9492a8c8e2e7f0489 = L.circleMarker(
+                [41.659050599164296, -72.6782520055751],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_e9399a561708daa9492a8c8e2e7f0489.bindTooltip(
+                `<div>
+                     <b>476 Cromwell Ave Building</b><br>60 referrals · ZIP 06067<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_6623ed45e0fbb3ae84347311c70424c8 = L.circleMarker(
+                [41.81658277593598, -72.73769055130164],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_6623ed45e0fbb3ae84347311c70424c8.bindTooltip(
+                `<div>
+                     <b>852 Cottage Grove Rd Building</b><br>72 referrals · ZIP 06002<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_58d2094e9720c4163d9e00c13856ba84 = L.circleMarker(
+                [41.77016720311377, -72.6443107927798],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_58d2094e9720c4163d9e00c13856ba84.bindTooltip(
+                `<div>
+                     <b>893 Main St Building</b><br>15 referrals · ZIP 06108<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_7302b74a478ebda793cd05c9d796e003 = L.circleMarker(
+                [41.7742503326206, -72.69976568043454],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_7302b74a478ebda793cd05c9d796e003.bindTooltip(
+                `<div>
+                     <b>Asylum Hill Family Medicine Center</b><br>19 referrals · ZIP 06105<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_b387ee8899da3d71a9f258e9b037d5d2 = L.circleMarker(
+                [41.816721685958555, -72.73836538624293],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_b387ee8899da3d71a9f258e9b037d5d2.bindTooltip(
+                `<div>
+                     <b>Bloomfield</b><br>1 referrals · ZIP 06002<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_20d04e66355647a3b8bdc71335d9d55e = L.circleMarker(
+                [41.9895301021127, -72.56545489359847],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_20d04e66355647a3b8bdc71335d9d55e.bindTooltip(
+                `<div>
+                     <b>Draw Station - Hazard</b> ⚠️<br>1 referrals · ZIP 06082<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_035a36d389af35881f6d7fac49a957cb = L.circleMarker(
+                [41.97635717008868, -72.44562303796187],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_035a36d389af35881f6d7fac49a957cb.bindTooltip(
+                `<div>
+                     <b>Family Medicine Somers</b><br>1 referrals · ZIP 06071<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_0cbadae57fa14ac350c05f5d5f89f1ca = L.circleMarker(
+                [41.78352819502295, -72.74654839253498],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_0cbadae57fa14ac350c05f5d5f89f1ca.bindTooltip(
+                `<div>
+                     <b>Family Physicians in West Hartford</b><br>29 referrals · ZIP 06117<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_7fa94bd3bd27c17463f859d462d2ed34 = L.circleMarker(
+                [41.83875609075162, -72.89834248955067],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_7fa94bd3bd27c17463f859d462d2ed34.bindTooltip(
+                `<div>
+                     <b>Farmington</b> ⚠️<br>1 referrals · ZIP 06019<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_4d82c521d5158729c2b3d21ba4a0884f = L.circleMarker(
+                [41.7691420035843, -72.70026452934782],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_4d82c521d5158729c2b3d21ba4a0884f.bindTooltip(
+                `<div>
+                     <b>Gengras Medical Office Building</b> ⚠️<br>12 referrals · ZIP 06105<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_5f793fc58bafce5dff4268de15cb1dab = L.circleMarker(
+                [41.712706054165416, -72.59893014514726],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_5f793fc58bafce5dff4268de15cb1dab.bindTooltip(
+                `<div>
+                     <b>Infusion Center - Glastonbury</b><br>1 referrals · ZIP 06033<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_be0f7a247204bba2661b7f9243b4d124 = L.circleMarker(
+                [42.11703738893131, -72.59495680916423],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_be0f7a247204bba2661b7f9243b4d124.bindTooltip(
+                `<div>
+                     <b>Mercy Medical Center Springfield</b><br>8 referrals · ZIP 01104<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_0500be26c45a645f0f023f90addbd622 = L.circleMarker(
+                [41.4907097938092, -73.05392057359276],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_0500be26c45a645f0f023f90addbd622.bindTooltip(
+                `<div>
+                     <b>Naugatuck Internal Medicine</b><br>4 referrals · ZIP 06770<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_ebb963fc92ad375a180072f4be48cbf5 = L.circleMarker(
+                [41.81714408748864, -72.73853597513347],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_ebb963fc92ad375a180072f4be48cbf5.bindTooltip(
+                `<div>
+                     <b>Primary Care - Bloomfield</b><br>1 referrals · ZIP 06002<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_7c69598bca7b994f76ec80ce0ab42cad = L.circleMarker(
+                [41.50188451973989, -72.97912604886682],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_7c69598bca7b994f76ec80ce0ab42cad.bindTooltip(
+                `<div>
+                     <b>Prospect</b> ⚠️<br>4 referrals · ZIP 06712<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_1f62e05e8e100aea2eec3fd17ebe1ee1 = L.circleMarker(
+                [41.77439514397509, -72.6998772373963],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_1f62e05e8e100aea2eec3fd17ebe1ee1.bindTooltip(
+                `<div>
+                     <b>Saint Francis Hospital and Medical Center Hartford</b><br>5 referrals · ZIP 06105<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_e93b1e9a934dfe127afe32a1df1684cf = L.circleMarker(
+                [41.976366741782634, -72.44534035170592],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_e93b1e9a934dfe127afe32a1df1684cf.bindTooltip(
+                `<div>
+                     <b>Somers Family Medicine</b><br>32 referrals · ZIP 06071<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_2e047fd4dff64b02c1f6530a75832974 = L.circleMarker(
+                [41.5512573152977, -73.06470941175502],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_2e047fd4dff64b02c1f6530a75832974.bindTooltip(
+                `<div>
+                     <b>St Marys Cardiovascular Diagnostic Center</b> ⚠️<br>1 referrals · ZIP 06708<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_881af02d0a90c75465e47857a7a572b1 = L.circleMarker(
+                [41.77473182686227, -72.69991343601305],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_881af02d0a90c75465e47857a7a572b1.bindTooltip(
+                `<div>
+                     <b>St. Francis Hospital Non-Invasive Cardiology</b><br>1 referrals · ZIP 06105<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_6c9ee6b28a88763c327cdce2abb9dbb3 = L.circleMarker(
+                [41.5302875415529, -72.89426689816452],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_6c9ee6b28a88763c327cdce2abb9dbb3.bindTooltip(
+                `<div>
+                     <b>THMG 1154 Highland Ave Building</b><br>9 referrals · ZIP 06410<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_802ce9efa76bec979133ce4234c86445 = L.circleMarker(
+                [41.553666120603275, -73.03663862408767],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_802ce9efa76bec979133ce4234c86445.bindTooltip(
+                `<div>
+                     <b>THMG 133 Scovill St Building</b><br>1 referrals · ZIP 06706<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_3a32601db5a55a87cf85a4d5bb84bff2 = L.circleMarker(
+                [41.98770351787717, -72.56062589480867],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_3a32601db5a55a87cf85a4d5bb84bff2.bindTooltip(
+                `<div>
+                     <b>THMG 140 Hazard Ave Building</b><br>99 referrals · ZIP 06082<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_b2e5fdad40f884919d8691928ec4eeac = L.circleMarker(
+                [41.52438639059975, -72.99638517228324],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_b2e5fdad40f884919d8691928ec4eeac.bindTooltip(
+                `<div>
+                     <b>THMG 166 Waterbury Rd Building</b><br>41 referrals · ZIP 06712<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_b2bfda96aba7965f17c9f8c68df04f67 = L.circleMarker(
+                [42.08561253746208, -72.61946453031814],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_b2bfda96aba7965f17c9f8c68df04f67.bindTooltip(
+                `<div>
+                     <b>THMG 230 Main St Building</b><br>196 referrals · ZIP 01001<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_b430ca04c5c053797bfa9d5b562dec8f = L.circleMarker(
+                [42.09640173583244, -72.50221440188852],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_b430ca04c5c053797bfa9d5b562dec8f.bindTooltip(
+                `<div>
+                     <b>THMG 305 Bicentennial Hwy Building</b><br>275 referrals · ZIP 01118<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_2745144e0a6ea44c72e76b266708209d = L.circleMarker(
+                [42.17197073335368, -72.58589967061062],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_2745144e0a6ea44c72e76b266708209d.bindTooltip(
+                `<div>
+                     <b>THMG 444 Montgomery St Building</b><br>261 referrals · ZIP 01020<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_f502514590ec99e3ad7043ee93197886 = L.circleMarker(
+                [41.60538585283706, -73.12282551722282],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_f502514590ec99e3ad7043ee93197886.bindTooltip(
+                `<div>
+                     <b>THMG 503 Wolcott Rd Building</b> ⚠️<br>6 referrals · ZIP 06795<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_327449aa011bccfc2904cf4189bd5e8c = L.circleMarker(
+                [41.49007645600949, -73.05439979522205],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_327449aa011bccfc2904cf4189bd5e8c.bindTooltip(
+                `<div>
+                     <b>THMG 58 Maple St Building</b><br>46 referrals · ZIP 06770<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_7263891b545614e039c64b8adef460d2 = L.circleMarker(
+                [41.605364907644734, -73.12141323190124],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_7263891b545614e039c64b8adef460d2.bindTooltip(
+                `<div>
+                     <b>THMG Watertown Access Center</b> ⚠️<br>40 referrals · ZIP 06795<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_0a41ce7032c81d0f70cd7885924703d1 = L.circleMarker(
+                [41.87633636826258, -72.80148856892563],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_0a41ce7032c81d0f70cd7885924703d1.bindTooltip(
+                `<div>
+                     <b>Trinity Health</b> ⚠️<br>3 referrals · ZIP 06070<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_8c243639728df2e47f02a7aa80cb59e5 = L.circleMarker(
+                [42.11416214031837, -72.59637385347416],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_8c243639728df2e47f02a7aa80cb59e5.bindTooltip(
+                `<div>
+                     <b>Trinity Health Medical Of New England Group</b><br>1 referrals · ZIP 01104<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_326e5d0ae1558604bf4b01ee8d8fd0c1 = L.circleMarker(
+                [41.77536297656966, -72.69952578811642],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_326e5d0ae1558604bf4b01ee8d8fd0c1.bindTooltip(
+                `<div>
+                     <b>Trinity Health Of New England Medical Group</b><br>1 referrals · ZIP 06105<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_6a408ec886e917c123851829a4d8daee = L.circleMarker(
+                [42.17130062117549, -72.5867278096263],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_6a408ec886e917c123851829a4d8daee.bindTooltip(
+                `<div>
+                     <b>Trinity Health of New England- Chicopee</b><br>2 referrals · ZIP 01020<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_864fbb863d961fe2eee462e61dead12b = L.circleMarker(
+                [42.1716443753409, -72.58670260106707],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_864fbb863d961fe2eee462e61dead12b.bindTooltip(
+                `<div>
+                     <b>Trinity Health of New England- Chicopee MA</b><br>1 referrals · ZIP 01020<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_e911d93df4ccf07670b2000ff940a001 = L.circleMarker(
+                [42.1716712945943, -72.58570909332431],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_e911d93df4ccf07670b2000ff940a001.bindTooltip(
+                `<div>
+                     <b>Trinity Health of New England- Chicopee, MA</b><br>2 referrals · ZIP 01020<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_f56395708ed38c46d564900869676525 = L.circleMarker(
+                [41.92148823544751, -72.66723556185039],
+                {"bubblingMouseEvents": true, "color": "#1a7a2e", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#27ae60", "fillOpacity": 0.9, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 2}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_f56395708ed38c46d564900869676525.bindTooltip(
+                `<div>
+                     <b>Windsor Locks</b><br>2 referrals · ZIP 06096<br>✅ Referring
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_de2fa1e3413e9911c8a5c3ddf5e09491 = L.circleMarker(
+                [43.04738125322394, -76.13647158858399],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_de2fa1e3413e9911c8a5c3ddf5e09491.bindTooltip(
+                `<div>
+                     <b>St Josephs Health Physicians (FKA St Josephs Physicians)</b><br>1000 E Genesee St<br>⚠️ Not Yet Referring · Active Engagement
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_6ad7b21d74cb76f7dc0e7f2e59ee7e7a = L.circleMarker(
+                [42.11618116255208, -72.59584992551405],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_6ad7b21d74cb76f7dc0e7f2e59ee7e7a.bindTooltip(
+                `<div>
+                     <b>Center for Breast Health and Gynecologic Oncology</b><br>271 Carew St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_38d5b704f8924e086942d71aa9936b1c = L.circleMarker(
+                [42.11213062200857, -72.5959541202119],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_38d5b704f8924e086942d71aa9936b1c.bindTooltip(
+                `<div>
+                     <b>Mercy Orthopedic Hospitalists</b><br>401 Chestnut St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_575e7266bd3ce56963017d14e69b85f4 = L.circleMarker(
+                [42.16839285201229, -72.63278918756987],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_575e7266bd3ce56963017d14e69b85f4.bindTooltip(
+                `<div>
+                     <b>Brightside for Families and Children - Holyoke</b><br>1233 Main St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_7e40551ba35576c59657192936a156db = L.circleMarker(
+                [42.116149415646554, -72.59532708992889],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_7e40551ba35576c59657192936a156db.bindTooltip(
+                `<div>
+                     <b>Cardiology and Cardiovascular Services at Mercy Medical Center</b><br>271 Carew St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_9063be14bd9d91926a5b9e628762f983 = L.circleMarker(
+                [42.10957787053148, -72.60067539329692],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_9063be14bd9d91926a5b9e628762f983.bindTooltip(
+                `<div>
+                     <b>Hampden Pulmonary and Sleep Medicine</b><br>2150 Main St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_bbb142b1f2148ced33c3ef13b188e9a5 = L.circleMarker(
+                [42.11669439853512, -72.59471649678088],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_bbb142b1f2148ced33c3ef13b188e9a5.bindTooltip(
+                `<div>
+                     <b>Wound Care Center & Hyperbaric Medicine at Mercy Medical Center</b><br>233 Carew St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_949f114c700312472402d07ee571348a = L.circleMarker(
+                [42.11608907166486, -72.59479706503127],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_949f114c700312472402d07ee571348a.bindTooltip(
+                `<div>
+                     <b>Sister Caritas Cancer Center at Mercy Medical</b><br>271 Carew St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_c80227ff2a51699ca34d6dbcd4f369eb = L.circleMarker(
+                [42.09546125602972, -72.51049969117065],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_c80227ff2a51699ca34d6dbcd4f369eb.bindTooltip(
+                `<div>
+                     <b>Urgent Care Physicians - Springfield</b><br>1515 Allen St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_c6aad34183736f3d82649fa0428e4a8b = L.circleMarker(
+                [42.20372511988914, -72.63056602755938],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_c6aad34183736f3d82649fa0428e4a8b.bindTooltip(
+                `<div>
+                     <b>Mass General Pediatric Cardiology</b><br>1754 Northampton St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_359724896bd75b0d54a36e3d2b20f148 = L.circleMarker(
+                [42.15968612420052, -72.63344523328902],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_359724896bd75b0d54a36e3d2b20f148.bindTooltip(
+                `<div>
+                     <b>Mercy Life PACE</b><br>2112 Riverdale St, Ste 1<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_e840304cf1e1752de3c5e89626a49d08 = L.circleMarker(
+                [42.11697557979718, -72.59433079413496],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_e840304cf1e1752de3c5e89626a49d08.bindTooltip(
+                `<div>
+                     <b>Mercy Medical Center Orthopedic Institute</b><br>299 Carew St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_b62d99b2170e1046fd7c7524b390472d = L.circleMarker(
+                [42.093335771525076, -72.52776968969766],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_b62d99b2170e1046fd7c7524b390472d.bindTooltip(
+                `<div>
+                     <b>Riverbend Medical Group</b> ⚠️<br>Springfield<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_87132c5a9568d17393f406b38ab9c3e4 = L.circleMarker(
+                [41.53630067955136, -73.03109774178797],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_87132c5a9568d17393f406b38ab9c3e4.bindTooltip(
+                `<div>
+                     <b>St. Mary's Hospital</b> ⚠️<br>56 Franklin Street <br>⚠️ Not Yet Referring · Active Engagement
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_72bd0b240df414064d650800fe2efd6e = L.circleMarker(
+                [41.988510348182096, -72.56006800000777],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_72bd0b240df414064d650800fe2efd6e.bindTooltip(
+                `<div>
+                     <b>Karen Davis Krzynowek Cancer Center - associated with Johnson Memorial Hospital.</b><br>142 Hazard Avenue<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_3aec9a285da18b29c31918b5034eb79b = L.circleMarker(
+                [41.977216104931685, -72.3899988373169],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_3aec9a285da18b29c31918b5034eb79b.bindTooltip(
+                `<div>
+                     <b>Behavioral Health at Johnson Memorial Hospital</b><br>201 Chestnut Hill Rd<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_3670d8d3af804a76a08d08660365655b = L.circleMarker(
+                [41.54138023826713, -73.0826646940372],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_3670d8d3af804a76a08d08660365655b.bindTooltip(
+                `<div>
+                     <b>Saint Marys Hospital Oncology Center</b><br>1075 Chase Pkwy, Ste A<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_f746e5bf514a4b808999418a03f70f45 = L.circleMarker(
+                [41.97713370916891, -72.44493266742784],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_f746e5bf514a4b808999418a03f70f45.bindTooltip(
+                `<div>
+                     <b>Trinity Health Of New England Medical Group Somers Family Medicine</b><br>95 South Rd, Ste 7<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_f08df2b47c5227964979186ac934f9af = L.circleMarker(
+                [41.55118018198461, -73.06543551447447],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_f08df2b47c5227964979186ac934f9af.bindTooltip(
+                `<div>
+                     <b>The Heart Group Trinity Health of New England</b><br>1320 W Main St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_3374ac60eab39d7ea5b84a9d19620139 = L.circleMarker(
+                [41.80020543702905, -72.69042329657712],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_3374ac60eab39d7ea5b84a9d19620139.bindTooltip(
+                `<div>
+                     <b>Burgdorf Health Center</b><br>131 Coventry St, Fl 2<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_de4724faa5c51817cb39bcc45cd85329 = L.circleMarker(
+                [41.551425995383376, -73.09113924281974],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_de4724faa5c51817cb39bcc45cd85329.bindTooltip(
+                `<div>
+                     <b>Trinity Health Of New England Medical Group Neurology and Headache Clinic - Waterbury</b><br>1579 Straits Turnpike, Ste 2A<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_03917886dd1ff63f273c2dc474c3cfdc = L.circleMarker(
+                [41.536739097829354, -73.03008627739331],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_03917886dd1ff63f273c2dc474c3cfdc.bindTooltip(
+                `<div>
+                     <b>Saint Marys Hospital Cardiology</b> ⚠️<br>56 Franklin St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_a7131536e2fa564a8069b1109fca78ff = L.circleMarker(
+                [41.99836391531648, -72.5940979686353],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_a7131536e2fa564a8069b1109fca78ff.bindTooltip(
+                `<div>
+                     <b>Trinity Health Of New England Medical Group Infectious Disease</b><br>7 Elm St, Ste 207<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_bbd2de39a503db478b3a046df30a6cf3 = L.circleMarker(
+                [41.54396610456008, -72.96568722499069],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_bbd2de39a503db478b3a046df30a6cf3.bindTooltip(
+                `<div>
+                     <b>Trinity Health of New England Gastroenterology</b><br>3801 E Main St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_597d4ce8387b0bdb1d71002c1dcee5db = L.circleMarker(
+                [41.9981066855503, -72.59343013572585],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_597d4ce8387b0bdb1d71002c1dcee5db.bindTooltip(
+                `<div>
+                     <b>Trinity Health Of New England Medical Group Gynecologic Oncology - Enfield Office</b><br>7 Elm St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_8004fc9054808bef3eb3e883a22725e2 = L.circleMarker(
+                [41.976950328383296, -72.38980910765113],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_8004fc9054808bef3eb3e883a22725e2.bindTooltip(
+                `<div>
+                     <b>Cardiology & Cardiovascular Services at Johnson Memorial Hospital</b><br>201 Chestnut Hill Rd<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_f0a6d9fe0a135d23f129fddf041546df = L.circleMarker(
+                [41.56092626702608, -73.06394849184574],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_f0a6d9fe0a135d23f129fddf041546df.bindTooltip(
+                `<div>
+                     <b>Digestive Disease Center of CT</b><br>60 Westwood Ave<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_1e11c75afc517b9b98d1a05c4094688b = L.circleMarker(
+                [41.551954465685654, -73.09172688210325],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_1e11c75afc517b9b98d1a05c4094688b.bindTooltip(
+                `<div>
+                     <b>Trinity Health Of New England Medical Group Urology Middlebury Office</b><br>1579 Straits Tpke, Ste 2A<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_1d58c27f0c4d447e29cea713b4754b1e = L.circleMarker(
+                [41.81977763432963, -72.65216024815436],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_1d58c27f0c4d447e29cea713b4754b1e.bindTooltip(
+                `<div>
+                     <b>Occupational Health - Windsor</b><br>100 Deerfield Rd<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_44ae59c1e6bea3eb80839497c90169b6 = L.circleMarker(
+                [41.79956114327935, -72.69551320795411],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_44ae59c1e6bea3eb80839497c90169b6.bindTooltip(
+                `<div>
+                     <b>Trinity Health Of New England Medical Group Urology - Hartford Office</b><br>490 Blue Hills Ave<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_5b41cafd9173e2bc0b7a0083a4058559 = L.circleMarker(
+                [41.658212819175645, -72.67802005954448],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_5b41cafd9173e2bc0b7a0083a4058559.bindTooltip(
+                `<div>
+                     <b>OB/GYN & Nurse Midwifery - Rocky Hill</b><br>546 Cromwell Ave, Ste 100<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_cfcc1cef123230abeb2ae578ee81e351 = L.circleMarker(
+                [41.75900603063629, -72.68593320466316],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_cfcc1cef123230abeb2ae578ee81e351.bindTooltip(
+                `<div>
+                     <b>Charter Oak Health Center</b><br>21 Grand St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_51f2cecc258f78f246fdd82afc12aa67 = L.circleMarker(
+                [41.54979975734162, -73.06608476337271],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_51f2cecc258f78f246fdd82afc12aa67.bindTooltip(
+                `<div>
+                     <b>Diabetes and Endocrinology Center at Saint Mary's</b><br>1389 W Main St, Ste 224<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_4603f61c4cf1d452881599f570e5fdcf = L.circleMarker(
+                [41.82001422783535, -73.08589194583796],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_4603f61c4cf1d452881599f570e5fdcf.bindTooltip(
+                `<div>
+                     <b>Occupational Health - Torrington</b><br>1598 E Main St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_2492a92749cdc0326d1d513ecdb994c7 = L.circleMarker(
+                [41.816873256491924, -72.72712375528447],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_2492a92749cdc0326d1d513ecdb994c7.bindTooltip(
+                `<div>
+                     <b>Trinity Health Of New England Medical Group Sports Medicine - Bloomfield</b><br>580 Cottage Grove Rd, Ste 106<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_2733a278ccc77410786fdb57d816367b = L.circleMarker(
+                [41.54106616910853, -73.08199013603263],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_2733a278ccc77410786fdb57d816367b.bindTooltip(
+                `<div>
+                     <b>Harold Leever Regional Cancer Center - Waterbury</b><br>1075 Chase Pkwy<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_a582642ab6911c804045f182d60408ad = L.circleMarker(
+                [41.64754505595504, -72.67869783892803],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_a582642ab6911c804045f182d60408ad.bindTooltip(
+                `<div>
+                     <b>Urgent Care Center Rocky Hill</b><br>856 Cromwell Ave<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_138d6558d8eec4c1580f918b33a96601 = L.circleMarker(
+                [41.55061102927443, -73.06508487771114],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_138d6558d8eec4c1580f918b33a96601.bindTooltip(
+                `<div>
+                     <b>Occupational Health - Waterbury</b><br>1312 W Main St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_0ff1f9e1fe8efbcabccea032281ebe39 = L.circleMarker(
+                [41.476946944501414, -73.21479027452553],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_0ff1f9e1fe8efbcabccea032281ebe39.bindTooltip(
+                `<div>
+                     <b>The Breast and Oncology Center - Southbury Office</b><br>33 Bullet Hill Rd N, Ste 214<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_c3cf37ceddedf6e40a1c16ddbe1b8056 = L.circleMarker(
+                [41.713263852453004, -72.59967750198123],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_c3cf37ceddedf6e40a1c16ddbe1b8056.bindTooltip(
+                `<div>
+                     <b>Smilow Cancer Center at Saint Francis Glastonbury</b><br>31 Sycamore St, Ste 202<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_489d5e261e53171fec01526cc3eb91a8 = L.circleMarker(
+                [41.54322406981824, -72.9661178283474],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_489d5e261e53171fec01526cc3eb91a8.bindTooltip(
+                `<div>
+                     <b>East End Primary Care and Multi Specialty</b><br>3801 E Main St, 2nd Fl<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_738d8032ad5618a6efb83653048e7eae = L.circleMarker(
+                [41.77201577499037, -72.70132227314883],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_738d8032ad5618a6efb83653048e7eae.bindTooltip(
+                `<div>
+                     <b>The Osteoporosis Clinic at Saint Francis Hospital</b><br>1075 Asylum Ave<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_073f9450119107017a2d68c7a96d5545 = L.circleMarker(
+                [41.82461658762105, -72.88444673527772],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_073f9450119107017a2d68c7a96d5545.bindTooltip(
+                `<div>
+                     <b>Trinity Health of New England Hoffman Heart and Vascular Institute Canton</b><br>110 Albany Turnpike, Ste 209<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_257a916023dab4ef8047bf7725e4682b = L.circleMarker(
+                [41.5273656452794, -73.08327347966724],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_257a916023dab4ef8047bf7725e4682b.bindTooltip(
+                `<div>
+                     <b>Naugatuck Valley Womens Health Specialists</b><br>687 Straits Turnpike, Ste 2A<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_2ecc254f9a4fc5ff18827557344e13cf = L.circleMarker(
+                [41.77270361289228, -72.70123195363625],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_2ecc254f9a4fc5ff18827557344e13cf.bindTooltip(
+                `<div>
+                     <b>Diabetes and Endocrinology Hartford</b><br>1075 Asylum Ave<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_f01c8a918a0555b178a7be7fa1ef9d10 = L.circleMarker(
+                [41.4599113840818, -73.23526368017707],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_f01c8a918a0555b178a7be7fa1ef9d10.bindTooltip(
+                `<div>
+                     <b>Polokoff Breast Care LLC</b><br>900 Main St S<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_14426ea2fa950ce3fefdd9b435093fea = L.circleMarker(
+                [41.54343922806595, -72.96643067205592],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_14426ea2fa950ce3fefdd9b435093fea.bindTooltip(
+                `<div>
+                     <b>Urgent Care - Waterbury, East Main Street</b><br>3801 E Main St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_aefdb30ff267b5777a8f6e987fbd72bc = L.circleMarker(
+                [41.713112479060776, -72.59874170913699],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_aefdb30ff267b5777a8f6e987fbd72bc.bindTooltip(
+                `<div>
+                     <b>Trinity Health Of New England Medical Group Breast Surgery - Glastonbury Office</b><br>31 Sycamore St, Ste 202<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_6b853354e198f518962e8431696dd03b = L.circleMarker(
+                [41.556218265915696, -73.01510364656382],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_6b853354e198f518962e8431696dd03b.bindTooltip(
+                `<div>
+                     <b>Urgent Care Center - Wolcott</b><br>503 Wolcott St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_4359576a4f45cb25af0d7e690275d674 = L.circleMarker(
+                [41.77629467926167, -72.69899246422902],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_4359576a4f45cb25af0d7e690275d674.bindTooltip(
+                `<div>
+                     <b>Curtis D. Robinson Center for Health Equity</b><br>140 Woodland St, Fl 1<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_009558a0fc6d116c34e978823d815140 = L.circleMarker(
+                [41.54768317924193, -73.06440621968807],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_009558a0fc6d116c34e978823d815140.bindTooltip(
+                `<div>
+                     <b>Cardiology Associates of Waterbury PC</b><br>455 Chase Pkwy<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_144496e515132569c9d0ca20dc6831dc = L.circleMarker(
+                [41.82864645170983, -72.48189951589578],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_144496e515132569c9d0ca20dc6831dc.bindTooltip(
+                `<div>
+                     <b>Trinity Health Of New England Medical Group Gynecologic Oncology - Vernon Office</b><br>428 Hartford Turnpike, Ste 209<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_09c6fa0801c79146aa5318f15767f145 = L.circleMarker(
+                [41.80060227739821, -72.6940458823731],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_09c6fa0801c79146aa5318f15767f145.bindTooltip(
+                `<div>
+                     <b>Saint Francis Behavioral Health Group, PC</b><br>675 Tower Ave, Ste 301<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_6bc4bd70611e21565654b5cb1b87ba82 = L.circleMarker(
+                [41.996673690696284, -72.57287979155726],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_6bc4bd70611e21565654b5cb1b87ba82.bindTooltip(
+                `<div>
+                     <b>Cardiology & Cardiovascular Services - Enfield</b><br>15 Palomba Dr<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_430e63fffde7294c5a374d2feead1a40 = L.circleMarker(
+                [41.541187960624946, -73.08156718655088],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_430e63fffde7294c5a374d2feead1a40.bindTooltip(
+                `<div>
+                     <b>Smilow Cancer Center Waterbury</b><br>1075 Chase Pkwy<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_a5339c019395a79d6aa0e49c1f7d1a40 = L.circleMarker(
+                [41.82014434404235, -73.08661846767308],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_a5339c019395a79d6aa0e49c1f7d1a40.bindTooltip(
+                `<div>
+                     <b>Trinity Health Of New England Medical Group Pulmonary and Critical Care - Torrington Office</b><br>1598 E Main St<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_cc63c171de632b74b1b1c7a7409f8e0c = L.circleMarker(
+                [41.829584508011244, -72.48129670754585],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_cc63c171de632b74b1b1c7a7409f8e0c.bindTooltip(
+                `<div>
+                     <b>Women's Specialty Care - Vernon</b><br>428 Hartford Turnpike, Ste 209<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_a8ed3a086bc10e41bc5fe330a1566586 = L.circleMarker(
+                [41.544314738018564, -73.00848343396946],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_a8ed3a086bc10e41bc5fe330a1566586.bindTooltip(
+                `<div>
+                     <b>East Main Internal Medicine</b><br>1981 E Main St, Fl 2<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_0962f3177b9ae95c5cc6d54957191422 = L.circleMarker(
+                [41.53823570110846, -73.10837580552312],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_0962f3177b9ae95c5cc6d54957191422.bindTooltip(
+                `<div>
+                     <b>Weight Management - Middlebury</b><br>590 Middlebury Rd, Ste A<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_71a612fb3bb79b99401ab840b74d90ff = L.circleMarker(
+                [41.79995969151851, -72.69539583986496],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_71a612fb3bb79b99401ab840b74d90ff.bindTooltip(
+                `<div>
+                     <b>Saint Francis Behavioral Health Group Hartford</b><br>500 Blue Hills Ave<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_b7f15f9be1c12843cd4c91e1afa7875d = L.circleMarker(
+                [41.712732147980304, -72.59969648468106],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_b7f15f9be1c12843cd4c91e1afa7875d.bindTooltip(
+                `<div>
+                     <b>Hematology and Oncology - Glastonbury Office</b><br>31 Sycamore St, Ste 202<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_cab84740c048f86bffc8bd6720b1e7ff = L.circleMarker(
+                [41.71270656285152, -72.59825720830162],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_cab84740c048f86bffc8bd6720b1e7ff.bindTooltip(
+                `<div>
+                     <b>Glastonbury Cancer Center - Trinity Health Of New England </b><br>31 Sycamore St <br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_412e5502bddfff4e6ece3b67a9f459f8 = L.circleMarker(
+                [41.524504420239644, -72.99575856832797],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_412e5502bddfff4e6ece3b67a9f459f8.bindTooltip(
+                `<div>
+                     <b>Primary Care Partners (PCP) - Endocrinology Suite 202  </b><br>166 Waterbury Rd<br>⚠️ Not Yet Referring · —
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_4a62ccd086230094673774f80bd8ed63 = L.circleMarker(
+                [41.55334397717422, -73.03704817566795],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_4a62ccd086230094673774f80bd8ed63.bindTooltip(
+                `<div>
+                     <b>Family Health Center (FHC)</b><br>132 Scovill St<br>⚠️ Not Yet Referring · Active Engagement
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_6bb7a473b1ac945fa2b68312c9ca691a = L.circleMarker(
+                [41.54405805591272, -72.96561213553325],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_6bb7a473b1ac945fa2b68312c9ca691a.bindTooltip(
+                `<div>
+                     <b>East End Primary Care</b><br>3801 East Main St<br>⚠️ Not Yet Referring · Active Engagement
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_dcd7c8d886d5510281b5c51fb1d504f6 = L.circleMarker(
+                [41.82015065477969, -73.08557949819195],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_dcd7c8d886d5510281b5c51fb1d504f6.bindTooltip(
+                `<div>
+                     <b>Torrington Primary Care</b><br>1598 East Main St<br>⚠️ Not Yet Referring · Active Engagement
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_c860394ae97fe612daa5c894b22390cc = L.circleMarker(
+                [41.552995905821106, -73.03724385517845],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_c860394ae97fe612daa5c894b22390cc.bindTooltip(
+                `<div>
+                     <b>FHC Medicine Pediatrics</b><br>132 Scovill St<br>⚠️ Not Yet Referring · Active Engagement
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_cd16eade3689fba8adbca5a93b0dc7ca = L.circleMarker(
+                [41.77443919072279, -72.69995061925486],
+                {"bubblingMouseEvents": true, "color": "#b8860b", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#f1c40f", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 1.5}
+            ).addTo(map_aac35bcea45ade03dd731c37032fea77);
+        
+    
+            circle_marker_cd16eade3689fba8adbca5a93b0dc7ca.bindTooltip(
+                `<div>
+                     <b>Asylum Hill Family Medicine</b><br>99 Woodland Street<br>⚠️ Not Yet Referring · Active Engagement
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+</script>
+</html>

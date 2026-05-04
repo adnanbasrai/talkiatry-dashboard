@@ -13,6 +13,7 @@ LINE_STYLE = "margin: 2px 0 2px 12px; font-size: 13px; color: #333;"
 SECTION_STYLE = "margin: 12px 0 4px 0; font-size: 15px; font-weight: 700; color: #1a1a2e; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 3px;"
 
 
+@st.fragment
 def render(df, period_col):
     mode = st.radio("Mode", ["Look up existing clinic", "Prospect new clinics"], horizontal=True, key="vp_top_mode")
 
@@ -67,6 +68,17 @@ def _render_existing_lookup(df, period_col):
             st.warning("Could not geocode this location.")
         return
 
+    # PDF export at top
+    if target_clinic:
+        nearby_for_pdf = find_nearby_clinics(build_clinic_geo_table(df), target_lat, target_lng, radius_miles=3, exclude_clinic=target_clinic)
+        pdf_bytes = generate_visit_prep_report(df, target_clinic, nearby_for_pdf, period_col)
+        if pdf_bytes:
+            st.download_button(
+                "Export Visit Briefing PDF", pdf_bytes,
+                file_name=f"visit_prep_{target_clinic.replace(' ', '_')[:30]}.pdf",
+                mime="application/pdf", key="vp_pdf_export",
+            )
+
     if target_clinic:
         _render_clinic_briefing(df, target_clinic, period_col)
         _render_recent_patients(df, target_clinic)
@@ -89,7 +101,17 @@ def _render_existing_lookup(df, period_col):
         _render_while_nearby(nearby)
 
     if not nearby.empty:
-        st.caption(f"{len(nearby)} clinics within {radius} miles")
+        nc_title, nc_export = st.columns([4, 1])
+        with nc_title:
+            st.caption(f"{len(nearby)} clinics within {radius} miles")
+        with nc_export:
+            csv = nearby[[
+                "REFERRING_CLINIC", "PARTNER_ASSIGNMENT", "distance_mi",
+                "referrals", "providers", "pct_booked", "days_since",
+            ]].copy()
+            csv["distance_mi"] = csv["distance_mi"].round(1)
+            csv["pct_booked"] = (csv["pct_booked"] * 100).round(1)
+            st.download_button("Export CSV", csv.to_csv(index=False), "nearby_clinics.csv", "text/csv", key="vp_nearby_csv")
         display = nearby[[
             "REFERRING_CLINIC", "PARTNER_ASSIGNMENT", "distance_mi",
             "referrals", "providers", "pct_booked", "days_since",
@@ -104,17 +126,8 @@ def _render_existing_lookup(df, period_col):
             "days_since": "Days Silent",
         })
         st.dataframe(display.reset_index(drop=True), use_container_width=True, hide_index=True)
-        csv = display.to_csv(index=False)
-        st.download_button("Export nearby clinics CSV", csv, "nearby_clinics.csv", "text/csv", key="vp_export")
 
-    if target_clinic:
-        pdf_bytes = generate_visit_prep_report(df, target_clinic, nearby, period_col)
-        if pdf_bytes:
-            st.download_button(
-                "Export Visit Briefing as PDF", pdf_bytes,
-                file_name=f"visit_prep_{target_clinic.replace(' ', '_')[:30]}.pdf",
-                mime="application/pdf", key="vp_pdf_export",
-            )
+    # PDF export already at top of page
 
 
 def _render_prospect_clinics(df, period_col):
@@ -410,6 +423,10 @@ def _render_recent_patients(df, clinic_name):
     display = display.rename(columns={k: v for k, v in rename.items() if k in display.columns})
 
     st.subheader(f"Recent Referrals — Last 14 Days ({len(display)})")
+    st.markdown(
+        f'<span style="font-size:10px; color:#999;">Data range: {cutoff.strftime("%b %d, %Y")} — {today.strftime("%b %d, %Y")}</span>',
+        unsafe_allow_html=True,
+    )
 
     # Style status column with colors
     def _style_status(val):
@@ -455,8 +472,15 @@ def _render_clinic_briefing(df, clinic_name, period_col):
         cat_badge = '<span style="background:#6c757d;color:white;padding:2px 8px;border-radius:4px;font-size:12px;">Stopped</span>'
 
     days_str = f" · Last referral <b>{days_since}d ago</b>" if days_since is not None else ""
+    d_min = clinic_df["REFERRAL_DATE"].min()
+    d_max = clinic_df["REFERRAL_DATE"].max()
     st.markdown(f"### {CLINIC_ICON} {clinic_name} {cat_badge}", unsafe_allow_html=True)
     st.markdown(f"<span style='font-size:13px;color:#666;'>{accounts} · {zip_code}{days_str}</span>", unsafe_allow_html=True)
+    if pd.notna(d_min) and pd.notna(d_max):
+        st.markdown(
+            f'<span style="font-size:10px; color:#999;">Data range: {d_min.strftime("%b %d, %Y")} — {d_max.strftime("%b %d, %Y")}</span>',
+            unsafe_allow_html=True,
+        )
 
     cols = st.columns(5)
     kpis = [

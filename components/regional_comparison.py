@@ -5,7 +5,7 @@ import numpy as np
 from data.transforms import _count_weekdays, count_unique_providers
 
 
-def render_regional_comparison(df_all, period_col):
+def render_regional_comparison(df_all, period_col, active_region="Northeast"):
     """Render a compact regional comparison: size-normalized metrics across regions."""
     regions = sorted(df_all["AREA"].dropna().unique())
     if len(regions) < 2:
@@ -40,6 +40,15 @@ def render_regional_comparison(df_all, period_col):
     except Exception:
         period_name = str(curr_period)
 
+    if "REFERRAL_DATE" in df_all.columns and not df_all.empty:
+        d_min = df_all["REFERRAL_DATE"].min()
+        d_max = df_all["REFERRAL_DATE"].max()
+        if pd.notna(d_min) and pd.notna(d_max):
+            st.markdown(
+                f'<span style="font-size:10px; color:#999;">Data range: {d_min.strftime("%b %d, %Y")} — {d_max.strftime("%b %d, %Y")}</span>',
+                unsafe_allow_html=True,
+            )
+
     # Compute per-region metrics
     rows = []
     for region in regions:
@@ -73,13 +82,14 @@ def render_regional_comparison(df_all, period_col):
 
     table = pd.DataFrame(rows)
 
-    # Highlight NE row
+    # Highlight active region row
     def highlight_ne(row):
-        if row["Region"] == "Northeast":
+        if row["Region"] == active_region:
             return ["font-weight: bold; background-color: #e8f4fd"] * len(row)
         return [""] * len(row)
 
     display = table.copy()
+    display["Referrals/Day"] = display["Referrals/Day"].apply(lambda x: f"{x:.1f}")
     display["% Intake"] = (display["% Intake"] * 100).round(1).astype(str) + "%"
     display["% Booked"] = (display["% Booked"] * 100).round(1).astype(str) + "%"
 
@@ -92,14 +102,14 @@ def render_regional_comparison(df_all, period_col):
     # Small bar charts side by side
     col1, col2, col3 = st.columns(3)
 
-    bar_colors = ["#4A90D9" if r == "Northeast" else "#B0C4DE" for r in table["Region"]]
+    bar_colors = ["#4A90D9" if r == active_region else "#B0C4DE" for r in table["Region"]]
 
     with col1:
         fig = go.Figure(go.Bar(
             x=table["Region"], y=table["Referrals/Day"],
             marker_color=bar_colors,
-            text=table["Referrals/Day"], textposition="auto",
-            textfont=dict(size=14, color="white"),
+            text=[f"{v:.1f}" for v in table["Referrals/Day"]], textposition="auto",
+            textfont=dict(size=11, color="white"),
         ))
         fig.update_layout(title="Referrals per Working Day", height=250, margin=dict(t=40, b=20), showlegend=False, yaxis_title="")
         st.plotly_chart(fig, use_container_width=True, key="rc_refs_day")
