@@ -5,6 +5,7 @@ from components.entity_table import render_entity_table
 from components.trend_chart import render_trend_chart
 
 
+@st.fragment
 def render(df, period_col):
     accounts = sorted(df["PARTNER_ASSIGNMENT"].unique().tolist())
     selected_accounts = st.multiselect(
@@ -26,7 +27,7 @@ def render(df, period_col):
     selected_zips = st.multiselect("Filter by zip code(s)", zips, key="geo_zips")
     filtered = map_df[map_df["REFERRING_CLINIC_ZIP"].isin(selected_zips)] if selected_zips else map_df
 
-    render_trend_chart(filtered, period_col)
+    render_trend_chart(filtered, period_col, key="geo")
 
     # Inline entity toggle
     entity_focus = st.radio("View by", ["Clinics", "Providers"], horizontal=True, key="geo_entity_toggle")
@@ -35,5 +36,4 @@ def render(df, period_col):
 
     geo_multi_acct = not selected_accounts or len(selected_accounts) > 1
     suffix = f" in {', '.join(selected_zips[:3])}{'...' if len(selected_zips) > 3 else ''}" if selected_zips else ""
-    st.subheader(f"{entity_label} Rankings{suffix}")
-    render_entity_table(filtered, entity_col, period_col, label=entity_label, include_account=geo_multi_acct)
+    render_entity_table(filtered, entity_col, period_col, label=entity_label, include_account=geo_multi_acct, title=f"{entity_label} Rankings{suffix}")

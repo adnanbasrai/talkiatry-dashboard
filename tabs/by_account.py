@@ -3,6 +3,7 @@ import pandas as pd
 from components.kpi_row import render_kpi_row
 from components.trend_chart import render_trend_chart
 from components.entity_table import render_entity_table
+from components.account_signals_table import render_account_callout, render_account_signals_table
 from components.retention_table import render_retention_table
 from components.regional_comparison import render_regional_comparison
 from components.action_plan import render_action_plan
@@ -27,42 +28,9 @@ def _get_sorted_accounts(df):
     return counts.index.tolist() + sorted(remaining)
 
 
-def _render_account_callout(df, period_col):
-    """One-line summary of account-level action items below Account Rankings title."""
-    from data.transforms import compute_entity_table
-    table = compute_entity_table(df, "PARTNER_ASSIGNMENT", period_col)
-    if table.empty:
-        return
 
-    parts = []
-
-    # Accounts with high days silent (>7d) that have meaningful volume
-    silent = table[(table["days_since_last"] >= 7) & (table["referrals"] >= 10)].sort_values("days_since_last", ascending=False)
-    if not silent.empty:
-        top_silent = silent.iloc[0]
-        parts.append(f"<b>{top_silent['PARTNER_ASSIGNMENT']}</b> has been silent {int(top_silent['days_since_last'])}d")
-
-    # Biggest grower
-    growers = table[table["trend"].notna() & (table["trend"] > 0) & (table["referrals"] >= 10)].sort_values("trend", ascending=False)
-    if not growers.empty:
-        top_grower = growers.iloc[0]
-        parts.append(f"<b>{top_grower['PARTNER_ASSIGNMENT']}</b> up {top_grower['trend']:+.0%}")
-
-    # Biggest decliner
-    decliners = table[table["trend"].notna() & (table["trend"] < -0.15) & (table["referrals"] >= 10)].sort_values("trend")
-    if not decliners.empty:
-        top_dec = decliners.iloc[0]
-        parts.append(f"<b>{top_dec['PARTNER_ASSIGNMENT']}</b> down {top_dec['trend']:+.0%}")
-
-    if parts:
-        st.markdown(
-            '<div style="background-color: #f5f7fa; padding: 8px 14px; border-radius: 6px; font-size: 13px;">'
-            + " · ".join(parts) + "</div>",
-            unsafe_allow_html=True,
-        )
-
-
-def render(df, period_col, df_all=None):
+@st.fragment
+def render(df, period_col, df_all=None, df_ne_full=None, region="Northeast"):
     sorted_accounts = _get_sorted_accounts(df)
     selected = st.multiselect(
         "Account(s)", options=sorted_accounts, default=None,
@@ -83,27 +51,29 @@ def render(df, period_col, df_all=None):
 
     # Regional comparison
     if df_all is not None and df_all["AREA"].nunique() > 1:
-        with st.expander("How does Northeast compare to other regions?"):
-            render_regional_comparison(df_all, period_col)
+        with st.expander(f"How does {region} compare to other regions?"):
+            render_regional_comparison(df_all, period_col, active_region=region)
 
     # #5: Action plan when account(s) selected
     if selected:
-        render_action_plan(filtered, period_col)
+        render_action_plan(filtered, period_col, df_full=df_ne_full)
 
     # KPIs
     render_kpi_row(filtered, period_col)
 
     # Trend charts
     if not selected or len(selected) > 1:
-        render_trend_chart(filtered, period_col, group_col="PARTNER_ASSIGNMENT")
+        render_trend_chart(filtered, period_col, group_col="PARTNER_ASSIGNMENT", key="acct")
     else:
-        render_trend_chart(filtered, period_col)
+        render_trend_chart(filtered, period_col, key="acct")
 
-    # #3: Show account table only when no specific account is selected
+    # Account signals table — always visible; callout only when showing all accounts
     if not selected:
+        render_account_callout(filtered, period_col)
         st.subheader("Account Rankings")
-        _render_account_callout(filtered, period_col)
-        render_entity_table(filtered, "PARTNER_ASSIGNMENT", period_col, label="Account")
+    else:
+        st.subheader("Account Signals")
+    render_account_signals_table(filtered, period_col)
 
     # #7: Inline entity toggle
     entity_focus = st.radio("View by", ["Clinics", "Providers"], horizontal=True, key="acct_entity_toggle")
@@ -111,10 +81,10 @@ def render(df, period_col, df_all=None):
     entity_label = "Clinic" if entity_focus == "Clinics" else "Provider"
 
     multi_acct = not selected or len(selected) > 1
-    st.subheader(f"{entity_label} Rankings")
-    render_entity_table(filtered, entity_col, period_col, label=entity_label, include_account=multi_acct)
+    render_entity_table(filtered, entity_col, period_col, label=entity_label, include_account=multi_acct, title=f"{entity_label} Rankings")
 
-    # Retention
+    # Retention — uses full history by default
     partner = selected[0] if selected and len(selected) == 1 else None
     with st.expander("Provider Retention Cohorts", expanded=False):
-        render_retention_table(df, partner_filter=partner)
+        retention_data = df_ne_full if df_ne_full is not None else df
+        render_retention_table(retention_data, df_filtered=df, partner_filter=partner)

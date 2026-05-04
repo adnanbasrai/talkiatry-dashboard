@@ -13,17 +13,18 @@ LINE_STYLE = "margin: 2px 0 2px 12px; font-size: 13px; color: #333;"
 SECTION_STYLE = "margin: 12px 0 4px 0; font-size: 15px; font-weight: 700; color: #1a1a2e; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 3px;"
 
 
+@st.fragment
 def render(df, period_col):
     mode = st.radio("Mode", ["Look up existing clinic", "Prospect new clinics"], horizontal=True, key="vp_top_mode")
 
     if mode == "Look up existing clinic":
-        _render_existing_lookup(df, period_col)
+        _render_clinic_briefing(df, period_col)
     else:
-        _render_prospect_clinics(df, period_col)
+        _render_prospect_importer(df, period_col)
 
 
-def _render_existing_lookup(df, period_col):
-    """Original visit prep: search existing clinics or zips."""
+def _render_clinic_briefing(df, period_col):
+    """Existing clinic lookup — shows KPIs, recent referrals, nearby clinics map."""
     st.subheader("Visit Prep")
     st.caption("Search for a clinic or zip code to get a briefing before your visit.")
 
@@ -67,8 +68,19 @@ def _render_existing_lookup(df, period_col):
             st.warning("Could not geocode this location.")
         return
 
+    # PDF export at top
     if target_clinic:
-        _render_clinic_briefing(df, target_clinic, period_col)
+        nearby_for_pdf = find_nearby_clinics(build_clinic_geo_table(df), target_lat, target_lng, radius_miles=3, exclude_clinic=target_clinic)
+        pdf_bytes = generate_visit_prep_report(df, target_clinic, nearby_for_pdf, period_col)
+        if pdf_bytes:
+            st.download_button(
+                "Export Visit Briefing PDF", pdf_bytes,
+                file_name=f"visit_prep_{target_clinic.replace(' ', '_')[:30]}.pdf",
+                mime="application/pdf", key="vp_pdf_export",
+            )
+
+    if target_clinic:
+        _render_clinic_card(df, target_clinic, period_col)
         _render_recent_patients(df, target_clinic)
 
     if search_mode == "Zip Code" and target_zip:
@@ -89,7 +101,17 @@ def _render_existing_lookup(df, period_col):
         _render_while_nearby(nearby)
 
     if not nearby.empty:
-        st.caption(f"{len(nearby)} clinics within {radius} miles")
+        nc_title, nc_export = st.columns([4, 1])
+        with nc_title:
+            st.caption(f"{len(nearby)} clinics within {radius} miles")
+        with nc_export:
+            csv = nearby[[
+                "REFERRING_CLINIC", "PARTNER_ASSIGNMENT", "distance_mi",
+                "referrals", "providers", "pct_booked", "days_since",
+            ]].copy()
+            csv["distance_mi"] = csv["distance_mi"].round(1)
+            csv["pct_booked"] = (csv["pct_booked"] * 100).round(1)
+            st.download_button("Export CSV", csv.to_csv(index=False), "nearby_clinics.csv", "text/csv", key="vp_nearby_csv")
         display = nearby[[
             "REFERRING_CLINIC", "PARTNER_ASSIGNMENT", "distance_mi",
             "referrals", "providers", "pct_booked", "days_since",
@@ -104,21 +126,12 @@ def _render_existing_lookup(df, period_col):
             "days_since": "Days Silent",
         })
         st.dataframe(display.reset_index(drop=True), use_container_width=True, hide_index=True)
-        csv = display.to_csv(index=False)
-        st.download_button("Export nearby clinics CSV", csv, "nearby_clinics.csv", "text/csv", key="vp_export")
 
-    if target_clinic:
-        pdf_bytes = generate_visit_prep_report(df, target_clinic, nearby, period_col)
-        if pdf_bytes:
-            st.download_button(
-                "Export Visit Briefing as PDF", pdf_bytes,
-                file_name=f"visit_prep_{target_clinic.replace(' ', '_')[:30]}.pdf",
-                mime="application/pdf", key="vp_pdf_export",
-            )
+    # PDF export already at top of page
 
 
-def _render_prospect_clinics(df, period_col):
-    """Import new/prospect clinics and generate intel briefings."""
+def _render_prospect_importer(df, period_col):
+    """New prospect clinic importer — NPI search, add to chase list."""
     st.subheader("Prospect New Clinics")
     st.caption("Import clinics you're planning to visit. We'll find nearby referring clinics and providers within 3 miles.")
 
@@ -231,9 +244,6 @@ def _render_prospect_clinics(df, period_col):
             else:
                 st.caption(f"No primary care providers found in NPI registry for zip {zip_code}")
 
-        # --- HubSpot: contacts matching this clinic ---
-        _render_hubspot_contacts(name)
-
         if not nearby.empty:
             # Map
             render_nearby_map(lat, lng, name, nearby)
@@ -269,33 +279,6 @@ def _render_prospect_clinics(df, period_col):
             st.caption("No referring clinics found within 3 miles.")
 
         st.divider()
-
-
-def _render_hubspot_contacts(clinic_name):
-    """Search HubSpot for contacts matching a clinic name."""
-    try:
-        from mcp__77db18e3_b3ff_4107_9ade_fee0218b6388 import search_crm_objects
-        # This would be called via MCP tools at runtime
-        # For now, show a placeholder that can be wired up
-    except ImportError:
-        pass
-
-    # Use session state to avoid redundant searches
-    key = f"hs_search_{clinic_name}"
-    if key not in st.session_state:
-        st.session_state[key] = None
-
-    with st.expander(f"HubSpot contacts for {clinic_name}"):
-        st.caption("Search HubSpot for existing contacts at this clinic.")
-        if st.button(f"Search HubSpot", key=f"hs_btn_{hash(clinic_name)}"):
-            st.session_state[key] = "searching"
-
-        if st.session_state.get(key) == "searching":
-            st.info(
-                "HubSpot search requires the MCP connector. "
-                "Use the HubSpot search tool in your CLI to query: "
-                f"`company name contains '{clinic_name}'` and look for associated contacts."
-            )
 
 
 def _get_referral_status(row):
@@ -410,6 +393,10 @@ def _render_recent_patients(df, clinic_name):
     display = display.rename(columns={k: v for k, v in rename.items() if k in display.columns})
 
     st.subheader(f"Recent Referrals — Last 14 Days ({len(display)})")
+    st.markdown(
+        f'<span style="font-size:10px; color:#999;">Data range: {cutoff.strftime("%b %d, %Y")} — {today.strftime("%b %d, %Y")}</span>',
+        unsafe_allow_html=True,
+    )
 
     # Style status column with colors
     def _style_status(val):
@@ -428,8 +415,8 @@ def _render_recent_patients(df, clinic_name):
         st.caption(" · ".join(summary_parts))
 
 
-def _render_clinic_briefing(df, clinic_name, period_col):
-    """Render the clinic briefing card."""
+def _render_clinic_card(df, clinic_name, period_col):
+    """Render the clinic briefing card (KPIs, top providers, trend chart)."""
     clinic_df = df[df["REFERRING_CLINIC"] == clinic_name]
     if clinic_df.empty:
         return
@@ -455,8 +442,15 @@ def _render_clinic_briefing(df, clinic_name, period_col):
         cat_badge = '<span style="background:#6c757d;color:white;padding:2px 8px;border-radius:4px;font-size:12px;">Stopped</span>'
 
     days_str = f" · Last referral <b>{days_since}d ago</b>" if days_since is not None else ""
+    d_min = clinic_df["REFERRAL_DATE"].min()
+    d_max = clinic_df["REFERRAL_DATE"].max()
     st.markdown(f"### {CLINIC_ICON} {clinic_name} {cat_badge}", unsafe_allow_html=True)
     st.markdown(f"<span style='font-size:13px;color:#666;'>{accounts} · {zip_code}{days_str}</span>", unsafe_allow_html=True)
+    if pd.notna(d_min) and pd.notna(d_max):
+        st.markdown(
+            f'<span style="font-size:10px; color:#999;">Data range: {d_min.strftime("%b %d, %Y")} — {d_max.strftime("%b %d, %Y")}</span>',
+            unsafe_allow_html=True,
+        )
 
     cols = st.columns(5)
     kpis = [

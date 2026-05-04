@@ -25,8 +25,16 @@ def _load_from_gsheets():
         return None
 
 
+def _csv_mtime() -> float:
+    """Return file modification time so cache busts automatically when the CSV changes."""
+    try:
+        return os.path.getmtime(DATA_PATH)
+    except OSError:
+        return 0.0
+
+
 @st.cache_data(ttl=3600)
-def load_referrals() -> pd.DataFrame:
+def load_referrals(_mtime: float = 0.0) -> pd.DataFrame:
     """Load referral data. Uses local CSV if available, falls back to Google Sheets."""
     if os.path.exists(DATA_PATH):
         df = pd.read_csv(DATA_PATH, low_memory=False)
@@ -51,6 +59,7 @@ def load_referrals() -> pd.DataFrame:
         ("AREA_1", "_AREA_2"),
         ("PATIENT_INSURANCE_NAME.1", "_PATIENT_INSURANCE_2"),
         ("PATIENT_INSURANCE_NAME_1", "_PATIENT_INSURANCE_2"),
+        ("REFERRAL_ID.1", "_REFERRAL_ID_2"),
     ]:
         if old in df.columns:
             rename_map[old] = new
@@ -124,15 +133,31 @@ def load_referrals() -> pd.DataFrame:
     # Week starts on Monday
     df["week_of"] = df["REFERRAL_DATE"].apply(lambda d: d - pd.Timedelta(days=d.weekday()) if pd.notna(d) else pd.NaT)
 
-    # --- Derive conversion booleans (validated logic) ---
+    # --- Derive conversion booleans (Omni-aligned methodology) ---
+
+    # Intake Started: session patient exists OR psychiatry appointment scheduled
     df["intake_started"] = (
-        df["INTAKE_START_DATE"].notna()
-        | df["APPOINTMENT_ID_FIRST_SCHEDULED"].notna()
-        | df["APPOINTMENT_DATE_BOOKED_FIRST_SCHEDULED"].notna()
+        df["SESSION_PATIENT_ID"].notna()
+        | df["PSYCHIATRY_APPOINTMENT_ID_FIRST_SCHEDULED"].notna()
     ).astype(int)
 
-    df["visit_booked"] = df["APPOINTMENT_ID_FIRST_SCHEDULED"].notna().astype(int)
-    df["visit_completed"] = df["APPOINTMENT_ID_FIRST_COMPLETED"].notna().astype(int)
+    # Intake Completed: intake marked as successfully completed
+    df["intake_completed"] = (df["IS_INTAKE_COMPLETED"] == 1).astype(int) \
+        if "IS_INTAKE_COMPLETED" in df.columns else 0
+
+    # First Visit Booked: psychiatry appointment scheduled
+    df["visit_booked"] = df["PSYCHIATRY_APPOINTMENT_ID_FIRST_SCHEDULED"].notna().astype(int)
+
+    # First Visit Completed: attended first appointment
+    # Non-Kaiser: ARR, CHK, No Show, LATE CANC all count as completed
+    # Kaiser: only ARR, CHK count
+    _status = df["PSYCHIATRY_APPOINTMENT_STATUS_FIRST_SCHEDULED_NON_CANCELED"].fillna("") \
+        if "PSYCHIATRY_APPOINTMENT_STATUS_FIRST_SCHEDULED_NON_CANCELED" in df.columns \
+        else pd.Series("", index=df.index)
+    _is_kaiser = df["PARTNER_ASSIGNMENT"].str.contains("Kaiser", case=False, na=False)
+    _non_kaiser_done = _status.isin(["ARR", "CHK", "No Show", "LATE CANC"])
+    _kaiser_done     = _status.isin(["ARR", "CHK"])
+    df["visit_completed"] = ((~_is_kaiser & _non_kaiser_done) | (_is_kaiser & _kaiser_done)).astype(int)
 
     # --- Derive root cause fields for conversion deep dive ---
     df["outreach_status"] = "No outreach data"

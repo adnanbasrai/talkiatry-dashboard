@@ -187,3 +187,40 @@ Each account is classified as one of:
 
 This field appears in the Account Rankings table across all tabs.
 """)
+
+    with st.expander("Clinic Visit Plan — Priority Signals", expanded=False):
+        st.markdown("""
+**How the Clinic Visit Plan works:**
+The My Team tab generates a prioritized list of clinics for each PPM to visit, based on signals detected in the referral data. Each clinic is scored, and the top clinics are assigned to P1, P2, or P3.
+
+**Signals and scoring:**
+
+| Signal | Score | Color | When it fires |
+|---|---|---|---|
+| Silent clinic | 4 | Red | Had 5+ referrals last period, zero this period |
+| New high-volume clinic | 3 | Green | Never referred before, now has 3+ referrals |
+| Volume surge | 3 | Green | Paced referral volume up 50%+ vs prior period (min 5 refs) |
+| Volume cliff | 3 | Red | Paced referral volume down 50%+ vs prior period (min 5 refs) |
+| Intake crash | 3 | Red | Intake start rate dropped 15+ percentage points (min 5 refs) |
+| High-converting clinic | 2 | Green | 55%+ intake start rate with 5+ referrals — visit to learn what's working |
+| New provider cluster | 2 | Green | 3+ first-time-ever providers referring from the same clinic |
+| Volume doubled | 2 | Green | Paced volume is 2x+ the prior period (min 3 refs) |
+| Persistently low intake | 2 | Red | Intake rate below 35% for both current AND prior period, with 5+ refs each |
+
+**Priority tiers:**
+- **P1 (Visit This Week)**: Total signal score of 4 or higher. Top 3 shown.
+- **P2 (Visit This Month)**: Total signal score of 2-3. Next 3 shown.
+- **P3 (Monitor / Schedule)**: Remaining signals. Next 3 shown.
+
+**A clinic can trigger multiple signals.** For example, a clinic with a volume surge (+3) AND new provider cluster (+2) would score 5 and appear as P1. Scores are additive.
+
+**Color coding:**
+- **Green** = positive visit — thank them, learn from them, reinforce the relationship
+- **Red** = intervention visit — something needs attention (volume drop, low conversion, silence)
+
+**Pacing adjustment:**
+The current partial month/week is projected to a full period using working days only (Monday-Friday, excluding US federal holidays). This prevents the incomplete current period from triggering false "volume cliff" alarms. For example, if April has 6 referrals in 9 working days, it's paced to 6/9 * 22 = 15 for the full month, not compared raw against March's 25.
+
+**Minimum thresholds:**
+Most signals require a minimum of 5 referrals to fire. This filters out noise from very small clinics where a single referral can swing percentages wildly. The "silent clinic" signal also requires 5+ in the prior period — a clinic that sent 1 referral last month and 0 this month is not a meaningful signal.
+""")

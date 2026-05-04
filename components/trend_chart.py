@@ -39,18 +39,72 @@ def _bar_text_colors(n):
     return ["white"] * (n - 1) + ["#333333"]
 
 
-_chart_counter = {"n": 0}
-
-def render_trend_chart(df, period_col, group_col=None):
-    """Render two side-by-side charts: referral volume bars + unique provider bars."""
-    # Unique prefix for all charts in this call to avoid duplicate element IDs
-    _chart_counter["n"] += 1
-    _k = f"tc{_chart_counter['n']}"
+def render_trend_chart(df, period_col, group_col=None, key="tc"):
+    """Render two side-by-side charts: referral volume bars + unique provider bars,
+    plus a conversion rate line chart. Includes a clinic/provider drill-down filter."""
+    _k = key  # stable key — must be unique per call site, not per render
 
     is_weekly = period_col == "week_of"
-    metrics = compute_period_metrics(df, period_col)
+
+    # ── Chart entity filter ───────────────────────────────────────────────────
+    fcol1, fcol2 = st.columns([2, 3])
+    with fcol1:
+        chart_filter = st.radio(
+            "Filter charts by:",
+            ["All", "Clinic", "Provider"],
+            horizontal=True,
+            key=f"{_k}_chart_filter",
+        )
+
+    df_chart = df
+    filter_subtitle = ""
+    filter_entity_name = ""   # plain name for chart titles
+
+    with fcol2:
+        if chart_filter == "Clinic":
+            clinic_opts = (
+                df["REFERRING_CLINIC"]
+                .dropna()
+                .pipe(lambda s: s[s.str.strip() != ""])
+                .value_counts()
+                .index.tolist()
+            )
+            sel = st.selectbox(
+                "Clinic", options=clinic_opts,
+                index=None,
+                key=f"{_k}_clinic_sel", label_visibility="collapsed",
+                placeholder="Search clinics…",
+            )
+            if sel:
+                df_chart = df[df["REFERRING_CLINIC"] == sel]
+                filter_subtitle = f"📍 {sel}"
+                filter_entity_name = sel
+        elif chart_filter == "Provider":
+            prov_opts = (
+                df["REFERRING_PHYSICIAN"]
+                .dropna()
+                .pipe(lambda s: s[s.str.strip() != ""])
+                .value_counts()
+                .index.tolist()
+            )
+            sel = st.selectbox(
+                "Provider", options=prov_opts,
+                index=None,
+                key=f"{_k}_prov_sel", label_visibility="collapsed",
+                placeholder="Search providers…",
+            )
+            if sel:
+                df_chart = df[df["REFERRING_PHYSICIAN"] == sel]
+                filter_subtitle = f"👤 {sel}"
+                filter_entity_name = sel
+
+    if df_chart.empty:
+        st.info("No data for the selected filter.")
+        return
+
+    metrics = compute_period_metrics(df_chart, period_col)
     provider_counts = (
-        df.groupby(period_col)["provider_id"]
+        df_chart.groupby(period_col)["provider_id"]
         .apply(count_unique_providers)
         .reset_index()
     )
@@ -81,6 +135,12 @@ def render_trend_chart(df, period_col, group_col=None):
     colors = _bar_colors(n)
     text_colors = _bar_text_colors(n)
 
+    # Find "best ever" for complete periods (exclude last which is partial)
+    complete_refs = metrics["referrals"].iloc[:-1] if n > 1 else metrics["referrals"]
+    complete_provs = provider_counts["providers"].iloc[:-1] if n > 1 else provider_counts["providers"]
+    best_ref_idx = complete_refs.idxmax() if len(complete_refs) > 0 and complete_refs.max() > 0 else None
+    best_prov_idx = complete_provs.idxmax() if len(complete_provs) > 0 and complete_provs.max() > 0 else None
+
     col_left, col_right = st.columns(2)
 
     # --- Left: Referral Volume ---
@@ -95,8 +155,20 @@ def render_trend_chart(df, period_col, group_col=None):
             textposition="inside",
             textfont=dict(size=14, color=text_colors),
         ))
+        # Star on best period
+        period_word = "week" if is_weekly else "month"
+        if best_ref_idx is not None:
+            fig1.add_annotation(
+                x=labels[best_ref_idx],
+                y=metrics["referrals"].iloc[best_ref_idx],
+                text=f"⭐ Best {period_word} ever",
+                showarrow=False,
+                font=dict(size=9, color="#555"),
+                yshift=14,
+            )
+        vol_title = "Referral Volume" if not filter_entity_name else f"Referral Volume — {filter_entity_name}"
         fig1.update_layout(
-            title="Referral Volume",
+            title=vol_title,
             yaxis=dict(title="Referrals"),
             height=350,
             margin=dict(t=50, b=30),
@@ -116,6 +188,16 @@ def render_trend_chart(df, period_col, group_col=None):
             textposition="inside",
             textfont=dict(size=14, color=text_colors),
         ))
+        # Star on best period
+        if best_prov_idx is not None:
+            fig2.add_annotation(
+                x=labels[best_prov_idx],
+                y=provider_counts["providers"].iloc[best_prov_idx],
+                text=f"⭐ Best {period_word} ever",
+                showarrow=False,
+                font=dict(size=9, color="#555"),
+                yshift=14,
+            )
         fig2.update_layout(
             title="Unique Referring Providers",
             yaxis=dict(title="Providers"),
@@ -126,7 +208,8 @@ def render_trend_chart(df, period_col, group_col=None):
         st.plotly_chart(fig2, use_container_width=True, key=f"{_k}_prov")
 
     # --- Conversion Rate Trends ---
-    st.markdown("**Conversion Rates**")
+    conv_header = "**Conversion Rates**" if not filter_entity_name else f"**Conversion Rates — {filter_entity_name}**"
+    st.markdown(conv_header)
 
     # Conversion summary right below the title
     if len(metrics) >= 3:

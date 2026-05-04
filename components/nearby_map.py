@@ -97,6 +97,11 @@ def render_nearby_map(target_lat, target_lng, target_name, nearby_df):
         data=pd.DataFrame([{
             "lat": target_lat, "lng": target_lng,
             "REFERRING_CLINIC": target_name,
+            "PARTNER_ASSIGNMENT": "Target",
+            "referrals": "",
+            "pct_booked_display": "",
+            "distance_display": "0 mi",
+            "days_display": "",
         }]),
         get_position=["lng", "lat"],
         get_radius=80,

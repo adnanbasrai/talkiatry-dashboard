@@ -6,5 +6,5 @@ textColor = "#1A1A2E"
 
 [server]
 headless = true
-port = 8004
+port = 8002
 address = "0.0.0.0"
