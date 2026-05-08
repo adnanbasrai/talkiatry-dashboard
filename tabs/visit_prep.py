@@ -2,7 +2,7 @@ import base64
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-from data.transforms import compute_metrics, compute_entity_table, compute_period_metrics
+from data.transforms import compute_metrics, compute_entity_table, compute_period_metrics, derive_referral_status
 from components.nearby_map import build_clinic_geo_table, find_nearby_clinics, render_nearby_map, haversine_miles
 from components.geo_map import geocode_zips
 from components.pdf_export import generate_visit_prep_report, generate_provider_status_report
@@ -349,51 +349,8 @@ def _render_prospect_importer(df, period_col):
         st.divider()
 
 
-def _get_referral_status(row):
-    """Map a referral row to a clear status with termination reason where applicable."""
-    if row.get("visit_completed") == 1:
-        return "Visit Completed"
-    if row.get("visit_booked") == 1:
-        return "Visit Booked"
-
-    action = row.get("INTAKE_ACTION_STATUS", "")
-    termination = row.get("TERMINATION_REASON", "")
-    if action == "Rejected":
-        if pd.notna(termination) and termination:
-            tr = str(termination)
-            if "OON" in tr or "OutOfNetwork" in tr or "InsurancePlan" in tr or "Payor" in tr:
-                return "Rejected — Insurance OON"
-            elif "Minor" in tr:
-                return "Rejected — Minor"
-            elif "Inpatient" in tr:
-                return "Rejected — Recently Inpatient"
-            elif "Emergency" in tr:
-                return "Rejected — Emergency"
-            elif "Schizo" in tr:
-                return "Rejected — Clinical"
-            else:
-                return f"Rejected — {tr[:30]}"
-        return "Rejected"
-
-    is_completed = row.get("IS_INTAKE_COMPLETED")
-    if is_completed == 1 and action == "NonResponsive":
-        return "Intake Done — Non-Responsive"
-    if is_completed == 1 and action in ("New", "Called", "CalledSecondTime", "CalledThirdTime"):
-        return "Intake Done — Awaiting Booking"
-    if is_completed == 1:
-        return "Intake Completed"
-
-    if action == "NonResponsive":
-        return "Non-Responsive"
-    if action == "New":
-        return "Intake In Progress"
-    if action in ("Called", "CalledSecondTime", "CalledThirdTime"):
-        return "Outreach In Progress"
-
-    if row.get("intake_started") == 1:
-        return "Intake Started"
-
-    return "Not Started"
+# derive_referral_status imported from data.transforms — single source of truth.
+_get_referral_status = derive_referral_status
 
 
 def _status_color(status):

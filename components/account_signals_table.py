@@ -15,73 +15,18 @@ import pandas as pd
 import streamlit as st
 from functools import partial
 
-from data.transforms import compute_account_signals_table, last_complete_periods
-from data.constants import INTAKE_HEALTHY, INTAKE_WATCH, BOOKED_HEALTHY, BOOKED_WATCH, M1_STRONG, M1_MODERATE
-
-# ── Colour palette ────────────────────────────────────────────────────────────
-_STATUS_BG: dict[str, str] = {
-    "STRONG":    "#E8F5E9",
-    "GROWING":   "#F1F8E9",
-    "HEALTHY":   "#E8F5E9",
-    "FLAT":      "#FFFDE7",
-    "MODERATE":  "#FFF8E1",
-    "WATCH":     "#FFF8E1",
-    "DECLINING": "#FBE9E7",
-    "LOW":       "#FFEBEE",
-    "AT RISK":   "#FFEBEE",
-}
-_STATUS_FG: dict[str, str] = {
-    "STRONG":    "#2E7D32",
-    "GROWING":   "#558B2F",
-    "HEALTHY":   "#2E7D32",
-    "FLAT":      "#F57F17",
-    "MODERATE":  "#F57F17",
-    "WATCH":     "#F57F17",
-    "DECLINING": "#E65100",
-    "LOW":       "#C62828",
-    "AT RISK":   "#C62828",
-}
+from data.transforms import compute_account_signals_table, last_complete_periods, format_period_label
+from data.constants import (
+    INTAKE_HEALTHY, INTAKE_WATCH, BOOKED_HEALTHY, BOOKED_WATCH, M1_STRONG, M1_MODERATE,
+    STATUS_BG as _STATUS_BG, STATUS_FG as _STATUS_FG,
+)
+from components.formatters import fmt_pct as _fmt_pct, fmt_signed_pct as _fmt_signed_pct
+from components.formatters import fmt_pp as _fmt_pp, fmt_days as _fmt_days
 
 
-# ── Formatters ────────────────────────────────────────────────────────────────
-def _fmt_pct(v) -> str:
-    if v is None or (isinstance(v, float) and np.isnan(v)):
-        return "—"
-    return f"{v:.1%}"
-
-
-def _fmt_signed_pct(v) -> str:
-    if v is None or (isinstance(v, float) and np.isnan(v)):
-        return "—"
-    sign = "+" if v >= 0 else ""
-    return f"{sign}{v:.1%}"
-
-
-def _fmt_pp(v) -> str:
-    if v is None or (isinstance(v, float) and np.isnan(v)):
-        return "—"
-    pp = v * 100
-    sign = "+" if pp >= 0 else ""
-    return f"{sign}{pp:.1f}pp"
-
-
-def _fmt_days(v) -> str:
-    if v is None or (isinstance(v, float) and np.isnan(v)):
-        return "—"
-    return f"{int(v)}d"
-
-
-# ── Period label helpers ──────────────────────────────────────────────────────
+# ── Period label — delegates to shared utility in transforms ──────────────────
 def _period_label(period, period_col: str) -> str:
-    """Human-readable short label for a period value."""
-    try:
-        if period_col == "month_of":
-            return pd.Period(str(period), freq="M").strftime("%B %Y")
-        else:
-            monday = pd.Timestamp(str(period))
-            return f"week of {monday.strftime('%b %-d')}"
-    except Exception:
-        return str(period)
+    return format_period_label(period, period_col)
 
 
 # ── Styler helpers ────────────────────────────────────────────────────────────
@@ -174,9 +119,17 @@ def render_account_callout(df: pd.DataFrame, period_col: str):
         )
 
 
+# ── Cached signals computation ────────────────────────────────────────────────
+@st.cache_data(show_spinner=False)
+def _cached_account_signals(df: pd.DataFrame, period_col: str, rank_df: pd.DataFrame) -> pd.DataFrame:
+    """Cache-wrapper for compute_account_signals_table. Keeps transforms.py free of streamlit."""
+    return compute_account_signals_table(df, period_col, rank_df=rank_df)
+
+
 # ── Public entry point ────────────────────────────────────────────────────────
 def render_account_signals_table(df: pd.DataFrame, period_col: str, toggle_key: str = "acct_signals_toggle", rank_df=None):
-    sig = compute_account_signals_table(df, period_col, rank_df=rank_df)
+    _rank_df = rank_df if rank_df is not None else df
+    sig = _cached_account_signals(df, period_col, _rank_df)
     if sig.empty:
         st.info("Not enough periods of data to compute account signals.")
         return
@@ -184,7 +137,7 @@ def render_account_signals_table(df: pd.DataFrame, period_col: str, toggle_key: 
     is_monthly = period_col == "month_of"
 
     # ── Resolve period labels for tooltip text ────────────────────────────────
-    periods = sorted(df[period_col].dropna().unique())
+    periods = sorted(_rank_df[period_col].dropna().unique())
     curr_p, prev_p, prev2_p = last_complete_periods(periods, period_col)
     curr_lbl  = _period_label(curr_p,  period_col) if curr_p  else "current period"
     prev_lbl  = _period_label(prev_p,  period_col) if prev_p  else "prior period"

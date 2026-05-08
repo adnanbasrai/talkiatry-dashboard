@@ -1,7 +1,8 @@
 """
 constants.py
 ------------
-Single source of truth for all shared thresholds, tiers, and magic numbers.
+Single source of truth for all shared thresholds, tiers, magic numbers,
+colour palettes, and column names.
 Import from here instead of hardcoding values across files.
 """
 
@@ -28,3 +29,48 @@ PCT_TIERS        = [80, 60, 40, 20, 0]
 # ── Working day defaults (used when period boundary is unknown) ───────────────
 DEFAULT_WDAYS_MONTH = 22
 DEFAULT_WDAYS_WEEK  = 5
+
+# ── Status label → background/foreground colours (used in signals table + action plan) ──
+# Single source of truth — import in account_signals_table.py and action_plan.py
+STATUS_BG: dict = {
+    "STRONG":    "#E8F5E9",
+    "GROWING":   "#F1F8E9",
+    "HEALTHY":   "#E8F5E9",
+    "FLAT":      "#FFFDE7",
+    "MODERATE":  "#FFF8E1",
+    "WATCH":     "#FFF8E1",
+    "DECLINING": "#FBE9E7",
+    "LOW":       "#FFEBEE",
+    "AT RISK":   "#FFEBEE",
+}
+STATUS_FG: dict = {
+    "STRONG":    "#2E7D32",
+    "GROWING":   "#558B2F",
+    "HEALTHY":   "#2E7D32",
+    "FLAT":      "#F57F17",
+    "MODERATE":  "#F57F17",
+    "WATCH":     "#F57F17",
+    "DECLINING": "#E65100",
+    "LOW":       "#C62828",
+    "AT RISK":   "#C62828",
+}
+
+# ── Insight sentiment styles (used in action_plan.py) ────────────────────────
+SENTIMENT_STYLES: dict = {
+    "negative": {"border": "#dc3545", "bg": "#fff5f5", "icon": "🔴", "badge": "background:#dc3545;color:white;"},
+    "warning":  {"border": "#f5a623", "bg": "#fffbf0", "icon": "🟡", "badge": "background:#f5a623;color:white;"},
+    "positive": {"border": "#27AE60", "bg": "#f0faf4", "icon": "🟢", "badge": "background:#27AE60;color:white;"},
+}
+
+# ── Column name constants (update here if CSV schema changes) ─────────────────
+COL_REFERRAL_ID        = "REFERRAL_ID"
+COL_REFERRAL_DATE      = "REFERRAL_DATE"
+COL_PARTNER            = "PARTNER_ASSIGNMENT"
+COL_PPM                = "PPM"
+COL_CLINIC             = "REFERRING_CLINIC"
+COL_CLINIC_ZIP         = "REFERRING_CLINIC_ZIP"
+COL_PHYSICIAN          = "REFERRING_PHYSICIAN"
+COL_PROVIDER_ID        = "provider_id"
+COL_INTAKE_STARTED     = "intake_started"
+COL_VISIT_BOOKED       = "visit_booked"
+COL_VISIT_COMPLETED    = "visit_completed"

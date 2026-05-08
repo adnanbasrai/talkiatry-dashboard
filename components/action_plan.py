@@ -24,6 +24,7 @@ from components.account_insights import compute_account_insights, AccountInsight
 from components.geo_map import geocode_zips
 from data.transforms import compute_entity_table
 from components.pdf_export import generate_clinic_status_report, generate_provider_status_report
+from data.constants import SENTIMENT_STYLES as _SENTIMENT_STYLES
 
 
 # Bump this any time PDF generation code changes to invalidate cached PDFs
@@ -38,12 +39,8 @@ def _cached_clinic_pdf(df_full, clinic_name, _version=_PDF_VERSION):
 def _cached_provider_pdf(df_full, provider_name, _version=_PDF_VERSION):
     return generate_provider_status_report(df_full, provider_name)
 
-# ── Sentiment styling ─────────────────────────────────────────────────────────
-_SENTIMENT = {
-    "negative": {"border": "#dc3545", "bg": "#fff5f5", "icon": "🔴", "badge": "background:#dc3545;color:white;"},
-    "warning":  {"border": "#f5a623", "bg": "#fffbf0", "icon": "🟡", "badge": "background:#f5a623;color:white;"},
-    "positive": {"border": "#27AE60", "bg": "#f0faf4", "icon": "🟢", "badge": "background:#27AE60;color:white;"},
-}
+# ── Sentiment styling — imported from constants (single source of truth) ─────
+_SENTIMENT = _SENTIMENT_STYLES
 
 _TYPE_LABEL = {
     # Negative / warning signals

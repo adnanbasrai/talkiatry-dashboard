@@ -94,6 +94,7 @@ def _wdays(period, period_col: str) -> int:
 
 
 def _days_since(sub: pd.DataFrame) -> int | None:
+    """Return integer days since the most recent referral in sub, or None if empty."""
     last = sub["REFERRAL_DATE"].max()
     if pd.isna(last):
         return None
@@ -133,6 +134,7 @@ def _top_physicians_any(sub: pd.DataFrame, n: int = 5) -> list[str]:
 
 
 def _clinic_zip(sub: pd.DataFrame) -> str | None:
+    """Return the modal zip code for a clinic sub-DataFrame, or None if unavailable."""
     if "REFERRING_CLINIC_ZIP" not in sub.columns:
         return None
     mode = sub["REFERRING_CLINIC_ZIP"].dropna().mode()
@@ -141,6 +143,7 @@ def _clinic_zip(sub: pd.DataFrame) -> str | None:
 
 def _build_visit_clinic(df: pd.DataFrame, clinic: str, reason: str,
                         provider_override=None) -> InsightVisitClinic:
+    """Construct an InsightVisitClinic from the full df slice for a given clinic name."""
     sub = df[df["REFERRING_CLINIC"] == clinic]
     n   = len(sub)
     return InsightVisitClinic(

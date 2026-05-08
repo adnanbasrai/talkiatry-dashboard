@@ -8,6 +8,83 @@ from data.constants import (
 )
 
 
+def format_period_label(period, period_col: str) -> str:
+    """Return a human-readable short label for a period value.
+
+    Args:
+        period: A pandas Period (for month_of) or Timestamp/string (for week_of).
+        period_col: Either "month_of" or "week_of".
+
+    Returns:
+        e.g. "April 2026" for monthly, "week of Apr 7" for weekly.
+    """
+    try:
+        if period_col == "month_of":
+            return pd.Period(str(period), freq="M").strftime("%B %Y")
+        else:
+            monday = pd.Timestamp(str(period))
+            return f"week of {monday.strftime('%b %-d')}"
+    except Exception:
+        return str(period)
+
+
+def derive_referral_status(row) -> str:
+    """Map a referral row to a human-readable status string.
+
+    This is the single source of truth for referral status derivation — used by
+    the Visit Prep tab, the PDF export, and any future status displays. Keeps
+    business logic out of rendering modules.
+
+    Args:
+        row: A dict-like object (DataFrame row) with referral fields.
+
+    Returns:
+        A status string such as "Visit Completed", "Rejected — Insurance OON", etc.
+    """
+    if row.get("visit_completed") == 1:
+        return "Visit Completed"
+    if row.get("visit_booked") == 1:
+        return "Visit Booked"
+
+    action = row.get("INTAKE_ACTION_STATUS", "") or ""
+    termination = row.get("TERMINATION_REASON", "") or ""
+
+    if action == "Rejected":
+        if pd.notna(termination) and termination:
+            tr = str(termination)
+            if any(k in tr for k in ("OON", "OutOfNetwork", "InsurancePlan", "Payor")):
+                return "Rejected — Insurance OON"
+            if "Minor" in tr:
+                return "Rejected — Minor"
+            if "Inpatient" in tr:
+                return "Rejected — Recently Inpatient"
+            if "Emergency" in tr:
+                return "Rejected — Emergency"
+            if "Schizo" in tr:
+                return "Rejected — Clinical"
+            return f"Rejected — {tr[:30]}"
+        return "Rejected"
+
+    is_completed = row.get("IS_INTAKE_COMPLETED")
+    if is_completed == 1 and action == "NonResponsive":
+        return "Intake Done — Non-Responsive"
+    if is_completed == 1 and action in ("New", "Called", "CalledSecondTime", "CalledThirdTime"):
+        return "Intake Done — Awaiting Booking"
+    if is_completed == 1:
+        return "Intake Completed"
+
+    if action == "NonResponsive":
+        return "Non-Responsive"
+    if action == "New":
+        return "Intake In Progress"
+    if action in ("Called", "CalledSecondTime", "CalledThirdTime"):
+        return "Outreach In Progress"
+    if row.get("intake_started") == 1:
+        return "Intake Started"
+
+    return "Not Started"
+
+
 def count_unique_providers(series: pd.Series) -> int:
     """Count unique non-blank provider_ids. Nulls and empty strings are excluded."""
     non_null = series.dropna()
@@ -583,8 +660,13 @@ def compute_retention(df: pd.DataFrame, partner_filter: str = None) -> pd.DataFr
         row = {"Cohort": str(cm), "Cohort Size": size}
         for offset in range(1, 6):
             target = cm + offset
-            retained = cp["active_months"].apply(lambda s: target in s).sum()
-            row[f"M{offset}"] = round(retained / size * 100, 1) if size > 0 else 0
+            if size == 0:
+                # NaN instead of 0 so display layer can show "—" rather than
+                # a misleading 0% that looks identical to "zero retained"
+                row[f"M{offset}"] = float("nan")
+            else:
+                retained = cp["active_months"].apply(lambda s, t=target: t in s).sum()
+                row[f"M{offset}"] = round(retained / size * 100, 1)
         rows.append(row)
 
     return pd.DataFrame(rows)

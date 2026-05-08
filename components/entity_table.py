@@ -2,8 +2,6 @@ import streamlit as st
 import pandas as pd
 from data.transforms import compute_entity_table
 
-_export_counter = {"n": 0}
-
 CATEGORY_BADGES = {
     "Champion": "🟢 Champion",
     "Low Converting": "🔴 Low Converting",
@@ -67,8 +65,8 @@ def render_entity_table(df, entity_col, period_col="month_of", label="Entity", i
     if "Status" in display.columns:
         display["Status"] = display["Status"].map(lambda x: CATEGORY_BADGES.get(x, ""))
 
-    # Title + Export on same line
-    _export_counter["n"] += 1
+    # Deterministic export key based on call parameters (avoids mutable module-level state)
+    _export_key = f"export_{entity_col}_{label}_{hash(title or '')}"
     csv = display.to_csv(index=False)
 
     if title:
@@ -79,13 +77,13 @@ def render_entity_table(df, entity_col, period_col="month_of", label="Entity", i
             st.markdown("<div style='margin-top: 12px;'>", unsafe_allow_html=True)
             st.download_button(
                 "Export CSV", csv, file_name=f"{label.lower()}_rankings.csv",
-                mime="text/csv", key=f"export_{_export_counter['n']}",
+                mime="text/csv", key=_export_key,
             )
             st.markdown("</div>", unsafe_allow_html=True)
     else:
         st.download_button(
             "Export CSV", csv, file_name=f"{label.lower()}_rankings.csv",
-            mime="text/csv", key=f"export_{_export_counter['n']}",
+            mime="text/csv", key=_export_key,
         )
 
     # Date range indicator

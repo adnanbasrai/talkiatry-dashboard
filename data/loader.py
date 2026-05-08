@@ -66,8 +66,11 @@ def load_referrals(_mtime: float = 0.0) -> pd.DataFrame:
     df = df.rename(columns=rename_map)
 
     # --- Track contact info presence BEFORE dropping PII ---
-    df["has_email"] = df["PATIENT_EMAIL"].notna() & (df["PATIENT_EMAIL"].astype(str).str.strip() != "")
-    df["has_phone"] = df["PATIENT_PHONE_NUMBER"].notna() & (df["PATIENT_PHONE_NUMBER"].astype(str).str.strip() != "")
+    for _pii_col, _derived in [("PATIENT_EMAIL", "has_email"), ("PATIENT_PHONE_NUMBER", "has_phone")]:
+        if _pii_col in df.columns:
+            df[_derived] = df[_pii_col].notna() & (df[_pii_col].astype(str).str.strip() != "")
+        else:
+            df[_derived] = False
 
     # --- Provider identity: use pre-coalesced REFERRING_PROVIDER (NPI first, physician fallback) ---
     if "REFERRING_PROVIDER" in df.columns:
@@ -77,11 +80,24 @@ def load_referrals(_mtime: float = 0.0) -> pd.DataFrame:
             .replace({"nan": None, "None": None, "": None, "0": None})
         )
     else:
-        # Fallback: manual coalesce if REFERRING_PROVIDER column missing
-        npi = df["REFERRING_PROVIDER_NPI"].astype(str).str.strip().str.replace(r"\.0$", "", regex=True).replace({"nan": "", "None": "", "0": ""})
-        physician = df["REFERRING_PHYSICIAN"].astype(str).str.strip().replace({"nan": "", "None": ""})
-        df["provider_id"] = npi.where(npi != "", physician)
-        df.loc[df["provider_id"] == "", "provider_id"] = None
+        # Fallback: require at least one identity column to derive provider_id
+        _id_cols_present = [c for c in ("REFERRING_PROVIDER_NPI", "REFERRING_PHYSICIAN") if c in df.columns]
+        if not _id_cols_present:
+            import streamlit as st
+            st.warning("⚠️ Cannot derive provider_id: neither REFERRING_PROVIDER, REFERRING_PROVIDER_NPI, nor REFERRING_PHYSICIAN found in data.")
+            df["provider_id"] = None
+        else:
+            npi = (
+                df["REFERRING_PROVIDER_NPI"].astype(str).str.strip()
+                .str.replace(r"\.0$", "", regex=True)
+                .replace({"nan": "", "None": "", "0": ""})
+            ) if "REFERRING_PROVIDER_NPI" in df.columns else pd.Series("", index=df.index)
+            physician = (
+                df["REFERRING_PHYSICIAN"].astype(str).str.strip()
+                .replace({"nan": "", "None": ""})
+            ) if "REFERRING_PHYSICIAN" in df.columns else pd.Series("", index=df.index)
+            df["provider_id"] = npi.where(npi != "", physician)
+            df.loc[df["provider_id"] == "", "provider_id"] = None
 
     # --- Build patient display name (for visit prep only) ---
     if "PATIENT_NAME_FIRST" in df.columns and "PATIENT_NAME_LAST" in df.columns:
@@ -103,12 +119,17 @@ def load_referrals(_mtime: float = 0.0) -> pd.DataFrame:
     ]
     df = df.drop(columns=[c for c in pii_cols if c in df.columns], errors="ignore")
 
-    # --- Parse dates ---
+    # --- Parse dates (warn if >5% of values fail to parse) ---
     for col in ["REFERRAL_DATE", "INTAKE_START_DATE",
                  "APPOINTMENT_DATE_BOOKED_FIRST_SCHEDULED",
                  "APPOINTMENT_DATE_BOOKED_FIRST_COMPLETED"]:
         if col in df.columns:
+            _nulls_before = df[col].isna().sum()
             df[col] = pd.to_datetime(df[col], errors="coerce")
+            _bad = df[col].isna().sum() - _nulls_before
+            if _bad > 0.05 * len(df):
+                import streamlit as st
+                st.warning(f"⚠️ {col}: {_bad:,} rows ({_bad/len(df):.1%}) failed to parse as dates — check CSV format.")
 
     # --- Filter out future-dated referrals ---
     today = pd.Timestamp.now().normalize()

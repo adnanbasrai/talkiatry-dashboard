@@ -2,7 +2,8 @@ import io
 import os
 import pandas as pd
 from fpdf import FPDF
-from data.transforms import compute_metrics, compute_entity_table, count_unique_providers
+from data.transforms import compute_metrics, compute_entity_table, count_unique_providers, derive_referral_status
+from components.formatters import clean_npi, fmt_date
 
 _ASSETS_DIR  = os.path.join(os.path.dirname(__file__), '..', 'assets')
 _LOGO_PATH   = os.path.join(_ASSETS_DIR, 'logo.png')
@@ -112,35 +113,9 @@ def _date_range_str(df):
     return ""
 
 
-def _derive_status(r) -> str:
-    """Derive a human-readable referral status string from a DataFrame row."""
-    if r.get("visit_completed") == 1:
-        return "Visit Completed"
-    if r.get("visit_booked") == 1:
-        return "Visit Booked"
-    action = r.get("INTAKE_ACTION_STATUS", "")
-    termination = r.get("TERMINATION_REASON", "")
-    if action == "Rejected":
-        if pd.notna(termination) and termination:
-            tr = str(termination)
-            if "OON" in tr or "OutOfNetwork" in tr or "InsurancePlan" in tr or "Payor" in tr:
-                return "Rejected - OON"
-            if "Minor" in tr:
-                return "Rejected - Minor"
-        return "Rejected"
-    if r.get("IS_INTAKE_COMPLETED") == 1 and action == "NonResponsive":
-        return "Intake Done - No Response"
-    if r.get("IS_INTAKE_COMPLETED") == 1:
-        return "Intake Completed"
-    if action == "NonResponsive":
-        return "Non-Responsive"
-    if action == "New":
-        return "Intake In Progress"
-    if action in ("Called", "CalledSecondTime", "CalledThirdTime"):
-        return "Outreach In Progress"
-    if r.get("intake_started") == 1:
-        return "Intake Started"
-    return "Not Started"
+# derive_referral_status is imported from data.transforms — single source of truth.
+# Local alias for brevity within this module.
+_derive_status = derive_referral_status
 
 
 class ReportPDF(FPDF):
@@ -257,6 +232,168 @@ class ReportPDF(FPDF):
         self.set_text_color(0, 0, 0)
 
 
+# ── Shared PDF section helpers ────────────────────────────────────────────────
+
+def _pdf_top_clinics_section(pdf, df, period_col, date_range, include_account=False, limit=20):
+    """Render a 'Top Clinics' table section. Shared by PPM and account reports."""
+    clinic_table = compute_entity_table(df, "REFERRING_CLINIC", period_col, include_account=include_account)
+    if clinic_table.empty:
+        return
+    pdf.section("Top Clinics")
+    pdf.date_note(date_range)
+    if include_account:
+        headers = ["Clinic", "Account", "Referrals", "% Booked", "Days Silent", "Status"]
+        rows = [
+            [r["REFERRING_CLINIC"][:22], r["PARTNER_ASSIGNMENT"][:18],
+             int(r["referrals"]), f"{r['pct_booked']:.1%}",
+             f"{int(r['days_since_last'])}d" if pd.notna(r.get("days_since_last")) else "--",
+             r.get("category", "")]
+            for _, r in clinic_table.head(limit).iterrows()
+        ]
+        pdf.table(headers, rows, col_widths=[40, 35, 20, 20, 22, 23])
+    else:
+        headers = ["Clinic", "Referrals", "% Booked", "Days Silent", "Status"]
+        rows = [
+            [r["REFERRING_CLINIC"][:28], int(r["referrals"]), f"{r['pct_booked']:.1%}",
+             f"{int(r['days_since_last'])}d" if pd.notna(r.get("days_since_last")) else "--",
+             r.get("category", "")]
+            for _, r in clinic_table.head(limit).iterrows()
+        ]
+        pdf.table(headers, rows, col_widths=[55, 25, 25, 25, 30])
+
+
+def _pdf_top_providers_section(pdf, df, period_col, date_range, limit=20):
+    """Render a 'Top Providers' table section. Shared by PPM and account reports."""
+    prov_table = compute_entity_table(df, "REFERRING_PHYSICIAN", period_col)
+    if prov_table.empty:
+        return
+    pdf.section("Top Providers")
+    pdf.date_note(date_range)
+    headers = ["Provider", "Referrals", "% Booked", "Days Silent", "Status"]
+    rows = [
+        [str(r["REFERRING_PHYSICIAN"])[:28], int(r["referrals"]), f"{r['pct_booked']:.1%}",
+         f"{int(r['days_since_last'])}d" if pd.notna(r.get("days_since_last")) else "--",
+         r.get("category", "")]
+        for _, r in prov_table.head(limit).iterrows()
+    ]
+    pdf.table(headers, rows, col_widths=[55, 25, 25, 25, 30])
+
+
+def _pdf_action_items(pdf, curr_df, prev_df, all_prior, include_clinics=False):
+    """Render new/dropped provider (and optionally clinic) action item sections.
+
+    Args:
+        pdf: ReportPDF instance to render into.
+        curr_df: Current period DataFrame.
+        prev_df: Prior period DataFrame.
+        all_prior: All periods before curr_period combined.
+        include_clinics: If True, also render clinic-level new/dropped sections.
+    """
+    curr_provs      = set(curr_df["provider_id"].dropna())
+    prev_provs      = set(prev_df["provider_id"].dropna())
+    all_prior_provs = set(all_prior["provider_id"].dropna())
+
+    # New providers (first-ever)
+    first_ever = curr_provs - all_prior_provs
+    if first_ever:
+        fp = curr_df[curr_df["provider_id"].isin(first_ever)]
+        top_new = (fp.groupby("REFERRING_PHYSICIAN")
+                   .agg(refs=("REFERRAL_ID", "count")).reset_index()
+                   .sort_values("refs", ascending=False).head(3))
+        pdf.section("Action: Say Thank You to New Providers")
+        for _, r in top_new.iterrows():
+            pdf.action_item("+", _safe(f"{r['REFERRING_PHYSICIAN']}: {int(r['refs'])} referrals, first time ever"), (40, 140, 70))
+
+    # Dropped providers
+    dropped_p = prev_provs - curr_provs
+    if dropped_p:
+        dp = prev_df[prev_df["provider_id"].isin(dropped_p)]
+        top_dropped = (dp.groupby("REFERRING_PHYSICIAN")
+                       .agg(refs=("REFERRAL_ID", "count")).reset_index()
+                       .sort_values("refs", ascending=False).head(3))
+        pdf.section("Action: Re-engage Providers Who Stopped")
+        for _, r in top_dropped.iterrows():
+            pdf.action_item("!", _safe(f"{r['REFERRING_PHYSICIAN']}: {int(r['refs'])} referrals last period, zero now"), (200, 50, 50))
+
+    if include_clinics:
+        curr_clinics      = set(curr_df["REFERRING_CLINIC"].dropna())
+        prev_clinics      = set(prev_df["REFERRING_CLINIC"].dropna())
+        all_prior_clinics = set(all_prior["REFERRING_CLINIC"].dropna())
+
+        first_clinics_new = curr_clinics - all_prior_clinics
+        if first_clinics_new:
+            fc = curr_df[curr_df["REFERRING_CLINIC"].isin(first_clinics_new)]
+            top_new_c = (fc.groupby("REFERRING_CLINIC")
+                         .agg(refs=("REFERRAL_ID", "count")).reset_index()
+                         .sort_values("refs", ascending=False).head(3))
+            pdf.section("Action: Welcome New Clinics")
+            for _, r in top_new_c.iterrows():
+                pdf.action_item("+", _safe(f"{r['REFERRING_CLINIC']}: {int(r['refs'])} referrals, first time ever"), (40, 140, 70))
+
+        dropped_c = prev_clinics - curr_clinics
+        if dropped_c:
+            dc = prev_df[prev_df["REFERRING_CLINIC"].isin(dropped_c)]
+            top_dropped_c = (dc.groupby("REFERRING_CLINIC")
+                             .agg(refs=("REFERRAL_ID", "count")).reset_index()
+                             .sort_values("refs", ascending=False).head(3))
+            pdf.section("Action: Follow Up With Clinics That Went Silent")
+            for _, r in top_dropped_c.iterrows():
+                pdf.action_item("!", _safe(f"{r['REFERRING_CLINIC']}: {int(r['refs'])} referrals last period, zero now"), (200, 50, 50))
+
+        # Low intake clinics
+        clinic_conv = curr_df.groupby("REFERRING_CLINIC").agg(
+            refs=("REFERRAL_ID", "count"), intake=("intake_started", "sum"),
+        ).reset_index()
+        clinic_conv["pct"] = clinic_conv["intake"] / clinic_conv["refs"]
+        qualified = clinic_conv[clinic_conv["refs"] >= 5]
+        if len(qualified) >= 2:
+            low = qualified[qualified["pct"] <= qualified["pct"].median()].sort_values("pct").head(3)
+            if not low.empty:
+                pdf.section("Action: Investigate Low Intake Start Clinics")
+                for _, r in low.iterrows():
+                    pdf.action_item("?", _safe(f"{r['REFERRING_CLINIC']}: {r['pct']:.0%} intake started, {int(r['refs'])} referrals"), (200, 130, 50))
+
+
+def _pdf_referral_rows(refs_df, entity2_col="REFERRING_PHYSICIAN"):
+    """Build referral status table rows for PDF rendering.
+
+    Args:
+        refs_df: DataFrame of referral rows, sorted as desired.
+        entity2_col: Column for the second table column — "REFERRING_PHYSICIAN"
+                     for clinic reports, "REFERRING_CLINIC" for provider reports.
+
+    Returns:
+        Tuple of (headers, rows, row_colors, col_widths).
+    """
+    from collections import Counter
+    has_dob = "PATIENT_DOB" in refs_df.columns
+    col2_label = "Physician" if entity2_col == "REFERRING_PHYSICIAN" else "Clinic"
+    col2_width = 38 if entity2_col == "REFERRING_PHYSICIAN" else 45
+    patient_width = 38 if entity2_col == "REFERRING_PHYSICIAN" else 30
+
+    headers = ["Date", col2_label, "Patient", "DOB" if has_dob else "Age", "Status"]
+    col_widths = [22, col2_width, patient_width, 22, 160 - col2_width - patient_width]
+
+    rows, row_colors = [], []
+    for _, r in refs_df.iterrows():
+        status = _derive_status(r)
+        ref_date = r["REFERRAL_DATE"].strftime("%m/%d/%Y") if pd.notna(r["REFERRAL_DATE"]) else ""
+        entity2  = str(r.get(entity2_col, ""))[:25]
+        patient  = str(r.get("patient_name", ""))[:25] if pd.notna(r.get("patient_name")) else ""
+
+        if has_dob and pd.notna(r.get("PATIENT_DOB")):
+            dob = r["PATIENT_DOB"].strftime("%m/%d/%Y") if hasattr(r["PATIENT_DOB"], "strftime") else str(r["PATIENT_DOB"])[:10]
+        elif "PATIENT_AGE" in refs_df.columns and pd.notna(r.get("PATIENT_AGE")):
+            dob = str(int(r["PATIENT_AGE"]))
+        else:
+            dob = ""
+
+        rows.append([ref_date, entity2, patient, dob, status])
+        row_colors.append(_get_status_color(status))
+
+    return headers, rows, row_colors, col_widths
+
+
 def generate_ppm_report(df, ppm_name, period_col):
     """Generate a PDF report for a specific PPM."""
     ppm_df = df[df["PPM"] == ppm_name]
@@ -305,31 +442,10 @@ def generate_ppm_report(df, ppm_name, period_col):
 
     # Action items
     if len(periods) >= 2:
-        curr_df = ppm_df[ppm_df[period_col] == periods[-1]]
-        prev_df = ppm_df[ppm_df[period_col] == periods[-2]]
+        curr_df  = ppm_df[ppm_df[period_col] == periods[-1]]
+        prev_df  = ppm_df[ppm_df[period_col] == periods[-2]]
         all_prior = ppm_df[ppm_df[period_col] < periods[-1]]
-
-        curr_provs = set(curr_df["provider_id"].dropna())
-        prev_provs = set(prev_df["provider_id"].dropna())
-        all_prior_provs = set(all_prior["provider_id"].dropna())
-
-        # New providers
-        first_ever = curr_provs - all_prior_provs
-        if first_ever:
-            fp = curr_df[curr_df["provider_id"].isin(first_ever)]
-            top_new = fp.groupby("REFERRING_PHYSICIAN").agg(refs=("REFERRAL_ID", "count")).reset_index().sort_values("refs", ascending=False).head(3)
-            pdf.section("Action: Say Thank You to New Providers")
-            for _, r in top_new.iterrows():
-                pdf.action_item("+", _safe(f"{r['REFERRING_PHYSICIAN']}: {int(r['refs'])} referrals, first time"), (40, 140, 70))
-
-        # Dropped providers
-        dropped = prev_provs - curr_provs
-        if dropped:
-            dp = prev_df[prev_df["provider_id"].isin(dropped)]
-            top_dropped = dp.groupby("REFERRING_PHYSICIAN").agg(refs=("REFERRAL_ID", "count")).reset_index().sort_values("refs", ascending=False).head(3)
-            pdf.section("Action: Re-engage Providers Who Stopped")
-            for _, r in top_dropped.iterrows():
-                pdf.action_item("!", _safe(f"{r['REFERRING_PHYSICIAN']}: {int(r['refs'])} referrals last period, zero now"), (200, 50, 50))
+        _pdf_action_items(pdf, curr_df, prev_df, all_prior, include_clinics=False)
 
     # Priority clinics with P1/P2/P3 and full signal reasons
     if len(periods) >= 2:
@@ -379,36 +495,36 @@ def generate_ppm_report(df, ppm_name, period_col):
             reasons = []
             score = 0
             sentiment = "neutral"
-            ci = curr_intake_map.get(clinic, 0)
-            pi = prev_intake_map.get(clinic, 0)
-            new_p = new_provs_map.get(clinic, 0)
+            curr_ir    = curr_intake_map.get(clinic, 0)   # current period intake rate
+            prev_ir    = prev_intake_map.get(clinic, 0)   # prior period intake rate
+            new_prov_count = new_provs_map.get(clinic, 0) # providers new-to-this-clinic this period
 
             if clinic not in prior_clinics_set and curr_r >= 3:
                 reasons.append(f"New clinic, {curr_r} refs so far")
                 score += 3; sentiment = "green"
-            if prev_r >= 5 and paced > prev_r * 1.5:
+            if prev_r >= 5 and paced > prev_r * 1.5:   # paced ≥ 150% of prior = surging
                 reasons.append(f"Volume surging {int((paced/prev_r-1)*100):+d}% vs prior")
                 score += 3; sentiment = "green"
-            if new_p >= 3:
-                reasons.append(f"{new_p} new providers activating")
+            if new_prov_count >= 3:   # 3+ brand-new providers activating signals momentum
+                reasons.append(f"{new_prov_count} new providers activating")
                 score += 2; sentiment = "green"
-            if ci >= 0.55 and curr_r >= 5:
-                reasons.append(f"High intake conversion ({ci:.0%})")
+            if curr_ir >= 0.55 and curr_r >= 5:   # ≥55% = healthy intake threshold
+                reasons.append(f"High intake conversion ({curr_ir:.0%})")
                 score += 2
                 if sentiment == "neutral": sentiment = "green"
             if prev_r >= 5 and curr_r == 0:
                 reasons.append(f"Silent: had {prev_r} refs last period, zero now")
                 score += 4; sentiment = "red"
-            if prev_r >= 5 and paced < prev_r * 0.5 and curr_r > 0:
+            if prev_r >= 5 and paced < prev_r * 0.5 and curr_r > 0:   # paced < 50% of prior = dropping
                 reasons.append(f"Volume dropped {int((paced/prev_r-1)*100):+d}% vs prior")
                 score += 3; sentiment = "red"
-            if (ci - pi) < -0.15 and curr_r >= 5:
-                reasons.append(f"Intake rate dropped {(ci-pi)*100:+.0f}pp")
+            if (curr_ir - prev_ir) < -0.15 and curr_r >= 5:   # intake rate fell ≥15pp
+                reasons.append(f"Intake rate dropped {(curr_ir-prev_ir)*100:+.0f}pp")
                 score += 3; sentiment = "red"
-            if ci < 0.35 and pi < 0.35 and curr_r >= 5 and prev_r >= 5:
-                reasons.append(f"Persistently low intake: {ci:.0%} this period, {pi:.0%} last")
+            if curr_ir < 0.35 and prev_ir < 0.35 and curr_r >= 5 and prev_r >= 5:   # <35% both periods = chronic low
+                reasons.append(f"Persistently low intake: {curr_ir:.0%} this period, {prev_ir:.0%} last")
                 score += 2; sentiment = "red"
-            if paced > prev_r * 2 and prev_r >= 3 and sentiment != "red":
+            if paced > prev_r * 2 and prev_r >= 3 and sentiment != "red":   # paced ≥ 2× prior = accelerating
                 reasons.append("Volume 2x+ vs prior")
                 score += 2; sentiment = "green"
 
@@ -446,35 +562,8 @@ def generate_ppm_report(df, ppm_name, period_col):
                     )
                 pdf.ln(2)
 
-    # Top clinics
-    clinic_table = compute_entity_table(ppm_df, "REFERRING_CLINIC", period_col, include_account=True)
-    if not clinic_table.empty:
-        pdf.section("Top Clinics")
-        pdf.date_note(date_range)
-        headers = ["Clinic", "Account", "Referrals", "% Booked", "Status"]
-        rows = []
-        for _, r in clinic_table.head(15).iterrows():
-            rows.append([
-                r["REFERRING_CLINIC"][:25], r["PARTNER_ASSIGNMENT"][:20],
-                int(r["referrals"]), f"{r['pct_booked']:.1%}", r.get("category", ""),
-            ])
-        pdf.table(headers, rows, col_widths=[45, 40, 22, 22, 31])
-
-    # Top providers
-    prov_table = compute_entity_table(ppm_df, "REFERRING_PHYSICIAN", period_col)
-    if not prov_table.empty:
-        pdf.section("Top Providers")
-        pdf.date_note(date_range)
-        headers = ["Provider", "Referrals", "% Booked", "Days Silent", "Status"]
-        rows = []
-        for _, r in prov_table.head(20).iterrows():
-            rows.append([
-                str(r["REFERRING_PHYSICIAN"])[:28], int(r["referrals"]),
-                f"{r['pct_booked']:.1%}",
-                f"{int(r['days_since_last'])}d" if pd.notna(r.get("days_since_last")) else "--",
-                r.get("category", ""),
-            ])
-        pdf.table(headers, rows, col_widths=[55, 25, 25, 25, 30])
+    _pdf_top_clinics_section(pdf, ppm_df, period_col, date_range, include_account=True)
+    _pdf_top_providers_section(pdf, ppm_df, period_col, date_range)
 
     buf = io.BytesIO()
     pdf.output(buf)
@@ -509,105 +598,13 @@ def generate_account_report(df, account_names, period_col):
 
     # Action plan
     if len(periods) >= 2:
-        curr_df = filtered[filtered[period_col] == periods[-1]]
-        prev_df = filtered[filtered[period_col] == periods[-2]]
+        curr_df  = filtered[filtered[period_col] == periods[-1]]
+        prev_df  = filtered[filtered[period_col] == periods[-2]]
         all_prior = filtered[filtered[period_col] < periods[-1]]
+        _pdf_action_items(pdf, curr_df, prev_df, all_prior, include_clinics=True)
 
-        curr_provs = set(curr_df["provider_id"].dropna())
-        prev_provs = set(prev_df["provider_id"].dropna())
-        all_prior_provs = set(all_prior["provider_id"].dropna())
-        curr_clinics = set(curr_df["REFERRING_CLINIC"].dropna())
-        prev_clinics = set(prev_df["REFERRING_CLINIC"].dropna())
-        all_prior_clinics = set(all_prior["REFERRING_CLINIC"].dropna())
-
-        first_ever = curr_provs - all_prior_provs
-        if first_ever:
-            fp = curr_df[curr_df["provider_id"].isin(first_ever)]
-            top_new = fp.groupby("REFERRING_PHYSICIAN").agg(refs=("REFERRAL_ID", "count")).reset_index().sort_values("refs", ascending=False).head(3)
-            pdf.section("Action: Say Thank You to New Providers")
-            for _, r in top_new.iterrows():
-                pdf.action_item("+", _safe(f"{r['REFERRING_PHYSICIAN']}: {int(r['refs'])} referrals, first time ever"), (40, 140, 70))
-
-        first_clinics_new = curr_clinics - all_prior_clinics
-        if first_clinics_new:
-            fc = curr_df[curr_df["REFERRING_CLINIC"].isin(first_clinics_new)]
-            top_new_c = fc.groupby("REFERRING_CLINIC").agg(refs=("REFERRAL_ID", "count")).reset_index().sort_values("refs", ascending=False).head(3)
-            pdf.section("Action: Welcome New Clinics")
-            for _, r in top_new_c.iterrows():
-                pdf.action_item("+", _safe(f"{r['REFERRING_CLINIC']}: {int(r['refs'])} referrals, first time ever"), (40, 140, 70))
-
-        dropped_p = prev_provs - curr_provs
-        if dropped_p:
-            dp = prev_df[prev_df["provider_id"].isin(dropped_p)]
-            top_dropped = dp.groupby("REFERRING_PHYSICIAN").agg(refs=("REFERRAL_ID", "count")).reset_index().sort_values("refs", ascending=False).head(3)
-            pdf.section("Action: Re-engage Providers Who Stopped")
-            for _, r in top_dropped.iterrows():
-                pdf.action_item("!", _safe(f"{r['REFERRING_PHYSICIAN']}: {int(r['refs'])} referrals last period, zero now"), (200, 50, 50))
-
-        dropped_c = prev_clinics - curr_clinics
-        if dropped_c:
-            dc = prev_df[prev_df["REFERRING_CLINIC"].isin(dropped_c)]
-            top_dropped_c = dc.groupby("REFERRING_CLINIC").agg(refs=("REFERRAL_ID", "count")).reset_index().sort_values("refs", ascending=False).head(3)
-            pdf.section("Action: Follow Up With Clinics That Went Silent")
-            for _, r in top_dropped_c.iterrows():
-                pdf.action_item("!", _safe(f"{r['REFERRING_CLINIC']}: {int(r['refs'])} referrals last period, zero now"), (200, 50, 50))
-
-        clinic_conv = curr_df.groupby("REFERRING_CLINIC").agg(
-            refs=("REFERRAL_ID", "count"), intake=("intake_started", "sum"),
-        ).reset_index()
-        clinic_conv["pct"] = clinic_conv["intake"] / clinic_conv["refs"]
-        qualified = clinic_conv[clinic_conv["refs"] >= 5]
-        if len(qualified) >= 2:
-            median_intake = qualified["pct"].median()
-            low = qualified[qualified["pct"] <= median_intake].sort_values("pct").head(3)
-            if not low.empty:
-                pdf.section("Action: Investigate Low Intake Start Clinics")
-                for _, r in low.iterrows():
-                    pdf.action_item("?", _safe(f"{r['REFERRING_CLINIC']}: {r['pct']:.0%} intake started, {int(r['refs'])} referrals"), (200, 130, 50))
-
-    # Top clinics
-    clinic_table = compute_entity_table(filtered, "REFERRING_CLINIC", period_col, include_account=len(account_names) > 1)
-    if not clinic_table.empty:
-        pdf.section("Top Clinics")
-        pdf.date_note(date_range)
-        if len(account_names) > 1:
-            headers = ["Clinic", "Account", "Referrals", "% Booked", "Days Silent", "Status"]
-            rows = []
-            for _, r in clinic_table.head(20).iterrows():
-                rows.append([
-                    r["REFERRING_CLINIC"][:22], r["PARTNER_ASSIGNMENT"][:18],
-                    int(r["referrals"]), f"{r['pct_booked']:.1%}",
-                    f"{int(r['days_since_last'])}d" if pd.notna(r.get("days_since_last")) else "--",
-                    r.get("category", ""),
-                ])
-            pdf.table(headers, rows, col_widths=[40, 35, 20, 20, 22, 23])
-        else:
-            headers = ["Clinic", "Referrals", "% Booked", "Days Silent", "Status"]
-            rows = []
-            for _, r in clinic_table.head(20).iterrows():
-                rows.append([
-                    r["REFERRING_CLINIC"][:28], int(r["referrals"]),
-                    f"{r['pct_booked']:.1%}",
-                    f"{int(r['days_since_last'])}d" if pd.notna(r.get("days_since_last")) else "--",
-                    r.get("category", ""),
-                ])
-            pdf.table(headers, rows, col_widths=[55, 25, 25, 25, 30])
-
-    # Top providers
-    prov_table = compute_entity_table(filtered, "REFERRING_PHYSICIAN", period_col)
-    if not prov_table.empty:
-        pdf.section("Top Providers")
-        pdf.date_note(date_range)
-        headers = ["Provider", "Referrals", "% Booked", "Days Silent", "Status"]
-        rows = []
-        for _, r in prov_table.head(20).iterrows():
-            rows.append([
-                str(r["REFERRING_PHYSICIAN"])[:28], int(r["referrals"]),
-                f"{r['pct_booked']:.1%}",
-                f"{int(r['days_since_last'])}d" if pd.notna(r.get("days_since_last")) else "--",
-                r.get("category", ""),
-            ])
-        pdf.table(headers, rows, col_widths=[55, 25, 25, 25, 30])
+    _pdf_top_clinics_section(pdf, filtered, period_col, date_range, include_account=len(account_names) > 1)
+    _pdf_top_providers_section(pdf, filtered, period_col, date_range)
 
     buf = io.BytesIO()
     pdf.output(buf)
@@ -657,8 +654,7 @@ def generate_visit_prep_report(df, clinic_name, nearby_df, period_col, days_wind
             clinic_df.dropna(subset=["REFERRING_PHYSICIAN", "REFERRING_PROVIDER_NPI"])
             .groupby("REFERRING_PHYSICIAN")["REFERRING_PROVIDER_NPI"]
             .first()
-            .astype(str).str.replace(r"\.0$", "", regex=True)
-            .replace({"nan": "", "None": ""})
+            .apply(clean_npi)
         )
         prov_agg["npi"] = prov_agg["REFERRING_PHYSICIAN"].map(npi_map).fillna("")
     prov_agg["pct_booked"] = (prov_agg["visit_booked"] / prov_agg["referrals"]).fillna(0)
@@ -708,39 +704,15 @@ def generate_visit_prep_report(df, clinic_name, nearby_df, period_col, days_wind
         pdf.cell(0, 6, _safe(f"No referrals in the selected window ({section_label})."), ln=True)
         pdf.ln(3)
     else:
+        from collections import Counter
         pdf.date_note(f"Referrals from {cutoff.strftime('%b %d')} to {today.strftime('%b %d, %Y')}")
         pdf.set_font("Helvetica", "", 9)
         pdf.cell(0, 5, _safe(f"{len(recent)} referrals"), ln=True)
         pdf.ln(2)
-
-        has_dob = "PATIENT_DOB" in recent.columns
-        headers = ["Date", "Physician", "Patient", "DOB" if has_dob else "Age", "Status"]
-        col_widths = [22, 38, 38, 22, 40]
-
-        rows = []
-        row_colors = []
-        for _, r in recent.iterrows():
-            status = _derive_status(r)
-
-            ref_date = r["REFERRAL_DATE"].strftime("%m/%d/%Y") if pd.notna(r["REFERRAL_DATE"]) else ""
-            physician = str(r.get("REFERRING_PHYSICIAN", ""))[:25]
-            patient = str(r.get("patient_name", ""))[:25] if pd.notna(r.get("patient_name")) else ""
-
-            if has_dob and pd.notna(r.get("PATIENT_DOB")):
-                dob = r["PATIENT_DOB"].strftime("%m/%d/%Y") if hasattr(r["PATIENT_DOB"], "strftime") else str(r["PATIENT_DOB"])[:10]
-            elif "PATIENT_AGE" in recent.columns and pd.notna(r.get("PATIENT_AGE")):
-                dob = str(int(r["PATIENT_AGE"]))
-            else:
-                dob = ""
-
-            rows.append([ref_date, physician, patient, dob, status])
-            row_colors.append(_get_status_color(status))
-
+        headers, rows, row_colors, col_widths = _pdf_referral_rows(recent, entity2_col="REFERRING_PHYSICIAN")
         pdf.table(headers, rows, col_widths=col_widths, row_colors=row_colors)
-
-        from collections import Counter
-        status_counts = Counter([row[4] for row in rows])
-        summary = " | ".join(f"{count} {status}" for status, count in sorted(status_counts.items(), key=lambda x: -x[1]))
+        status_counts = Counter(row[4] for row in rows)
+        summary = " | ".join(f"{c} {s}" for s, c in sorted(status_counts.items(), key=lambda x: -x[1]))
         pdf.set_font("Helvetica", "I", 8)
         pdf.cell(0, 5, _safe(summary), ln=True)
         pdf.ln(3)
@@ -803,21 +775,7 @@ def generate_clinic_status_report(df_full: pd.DataFrame, clinic_name: str):
     all_refs = clinic_df.sort_values("REFERRAL_DATE", ascending=False)
     pdf.section(f"Full Referral Status Report - {len(all_refs)} referrals, all time")
     pdf.date_note(date_range)
-    has_dob = "PATIENT_DOB" in all_refs.columns
-    headers = ["Date", "Physician", "Patient", "DOB" if has_dob else "Age", "Status"]
-    col_widths = [22, 38, 38, 22, 40]
-    rows, row_colors = [], []
-    for _, r in all_refs.iterrows():
-        status = _derive_status(r)
-        ref_date = r["REFERRAL_DATE"].strftime("%m/%d/%Y") if pd.notna(r["REFERRAL_DATE"]) else ""
-        physician = str(r.get("REFERRING_PHYSICIAN", ""))[:25]
-        patient = str(r.get("patient_name", ""))[:25] if pd.notna(r.get("patient_name")) else ""
-        if has_dob and pd.notna(r.get("PATIENT_DOB")):
-            dob = r["PATIENT_DOB"].strftime("%m/%d/%Y") if hasattr(r["PATIENT_DOB"], "strftime") else str(r["PATIENT_DOB"])[:10]
-        else:
-            dob = ""
-        rows.append([ref_date, physician, patient, dob, status])
-        row_colors.append(_get_status_color(status))
+    headers, rows, row_colors, col_widths = _pdf_referral_rows(all_refs, entity2_col="REFERRING_PHYSICIAN")
     pdf.table(headers, rows, col_widths=col_widths, row_colors=row_colors)
 
     buf = io.BytesIO()
@@ -855,21 +813,7 @@ def generate_provider_status_report(df_full: pd.DataFrame, provider_name: str):
     all_refs = prov_df.sort_values("REFERRAL_DATE", ascending=False)
     pdf.section(f"Full Referral Status Report - {len(all_refs)} referrals, all time")
     pdf.date_note(date_range)
-    has_dob = "PATIENT_DOB" in all_refs.columns
-    headers = ["Date", "Clinic", "Patient", "DOB" if has_dob else "Age", "Status"]
-    col_widths = [22, 45, 35, 22, 36]
-    rows, row_colors = [], []
-    for _, r in all_refs.iterrows():
-        status = _derive_status(r)
-        ref_date = r["REFERRAL_DATE"].strftime("%m/%d/%Y") if pd.notna(r["REFERRAL_DATE"]) else ""
-        clinic = str(r.get("REFERRING_CLINIC", ""))
-        patient = str(r.get("patient_name", ""))[:25] if pd.notna(r.get("patient_name")) else ""
-        if has_dob and pd.notna(r.get("PATIENT_DOB")):
-            dob = r["PATIENT_DOB"].strftime("%m/%d/%Y") if hasattr(r["PATIENT_DOB"], "strftime") else str(r["PATIENT_DOB"])[:10]
-        else:
-            dob = ""
-        rows.append([ref_date, clinic, patient, dob, status])
-        row_colors.append(_get_status_color(status))
+    headers, rows, row_colors, col_widths = _pdf_referral_rows(all_refs, entity2_col="REFERRING_CLINIC")
     pdf.table(headers, rows, col_widths=col_widths, row_colors=row_colors)
 
     buf = io.BytesIO()

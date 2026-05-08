@@ -10,20 +10,24 @@ except ImportError:
 
 
 @st.cache_data
-def geocode_zips(zips):
-    """Convert zip codes to lat/lng using pgeocode."""
+def _geocode_single_zip(z: str):
+    """Geocode one zip code. Cached individually so adding a new zip doesn't invalidate all others."""
     if not PGEOCODE_AVAILABLE:
-        return pd.DataFrame()
-    nomi = pgeocode.Nominatim("us")
-    results = []
-    for z in zips:
-        try:
-            info = nomi.query_postal_code(z)
-            if pd.notna(info.latitude):
-                results.append({"zip": z, "lat": info.latitude, "lng": info.longitude})
-        except Exception:
-            continue
-    return pd.DataFrame(results)
+        return None
+    try:
+        nomi = pgeocode.Nominatim("us")
+        info = nomi.query_postal_code(z)
+        if pd.notna(info.latitude):
+            return {"zip": z, "lat": float(info.latitude), "lng": float(info.longitude)}
+    except Exception:
+        pass
+    return None
+
+
+def geocode_zips(zips) -> pd.DataFrame:
+    """Convert a list of zip codes to lat/lng. Each zip is cached independently."""
+    results = [_geocode_single_zip(z) for z in zips]
+    return pd.DataFrame([r for r in results if r is not None])
 
 
 def render_geo_map(df, color_by_account=False):
@@ -73,17 +77,12 @@ def render_geo_map(df, color_by_account=False):
         )
         merged["top_partner"] = merged["REFERRING_CLINIC_ZIP"].map(top_partner)
         unique_partners = merged["top_partner"].unique().tolist()
-        import plotly.express as px
-        palette = px.colors.qualitative.Set2
-        partner_colors = {}
-        for i, p in enumerate(unique_partners):
-            hex_c = palette[i % len(palette)].lstrip("rgb(").rstrip(")")
-            if hex_c.startswith("#"):
-                r, g, b = int(hex_c[1:3], 16), int(hex_c[3:5], 16), int(hex_c[5:7], 16)
-            else:
-                parts = [x.strip() for x in hex_c.split(",")]
-                r, g, b = int(parts[0]), int(parts[1]), int(parts[2])
-            partner_colors[p] = (r, g, b)
+        # Set2-equivalent palette as RGB tuples (avoids plotly dependency for color lookup)
+        _PALETTE = [
+            (102, 194, 165), (252, 141,  98), (141, 160, 203), (231, 138, 195),
+            (166, 216,  84), (255, 217,  47), (229, 196, 148), (179, 179, 179),
+        ]
+        partner_colors = {p: _PALETTE[i % len(_PALETTE)] for i, p in enumerate(unique_partners)}
         merged["color_r"] = merged["top_partner"].map(lambda p: partner_colors.get(p, (74, 144, 217))[0])
         merged["color_g"] = merged["top_partner"].map(lambda p: partner_colors.get(p, (74, 144, 217))[1])
         merged["color_b"] = merged["top_partner"].map(lambda p: partner_colors.get(p, (74, 144, 217))[2])
