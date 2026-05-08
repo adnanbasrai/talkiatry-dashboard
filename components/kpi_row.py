@@ -3,20 +3,28 @@ import pandas as pd
 from data.transforms import compute_metrics, last_complete_periods
 
 
-def _enrich_provider_detail(agg_df, source_df, include_account):
+def _enrich_provider_detail(agg_df, source_df, include_account, include_last_ref=False):
     """Add physician name, NPI, and clinic to a provider aggregation."""
-    # For each provider_id, get the first physician name, NPI, and clinic
+    agg_cols = dict(
+        physician=("REFERRING_PHYSICIAN", "first"),
+        npi=("REFERRING_PROVIDER_NPI", "first"),
+        clinic=("REFERRING_CLINIC", "first"),
+    )
+    if include_last_ref:
+        agg_cols["last_ref"] = ("REFERRAL_DATE", "max")
+
     detail = (
         source_df.groupby("provider_id")
-        .agg(
-            physician=("REFERRING_PHYSICIAN", "first"),
-            npi=("REFERRING_PROVIDER_NPI", "first"),
-            clinic=("REFERRING_CLINIC", "first"),
-        )
+        .agg(**agg_cols)
         .reset_index()
     )
     # Clean NPI
     detail["npi"] = detail["npi"].astype(str).str.replace(r"\.0$", "", regex=True).replace({"nan": "", "None": ""})
+    if include_last_ref:
+        today = pd.Timestamp.now().normalize()
+        detail["days_since"] = (today - detail["last_ref"]).dt.days.apply(
+            lambda x: f"{int(x)}d ago" if pd.notna(x) else "—"
+        )
 
     merged = agg_df.merge(detail, on="provider_id", how="left")
     return merged
@@ -39,13 +47,14 @@ def _provider_change_detail(curr_df, prev_df, include_account=False):
             .reset_index()
             .sort_values("prior_referrals", ascending=False)
         )
-        lost = _enrich_provider_detail(lost, lost_df, include_account)
+        lost = _enrich_provider_detail(lost, lost_df, include_account, include_last_ref=True)
         col_order = ["physician", "npi", "clinic"]
         if include_account:
             col_order.append("PARTNER_ASSIGNMENT")
-        col_order.append("prior_referrals")
+        col_order += ["prior_referrals", "days_since"]
         lost = lost[[c for c in col_order if c in lost.columns]]
-        rename = {"physician": "Provider", "npi": "NPI", "clinic": "Clinic", "prior_referrals": "Prior Referrals"}
+        rename = {"physician": "Provider", "npi": "NPI", "clinic": "Clinic",
+                  "prior_referrals": "Prior Referrals", "days_since": "Days Since Last Referral"}
         if include_account:
             rename["PARTNER_ASSIGNMENT"] = "Account"
         lost = lost.rename(columns=rename)

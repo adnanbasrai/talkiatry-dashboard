@@ -6,30 +6,30 @@ import pandas as pd
 def render(df, period_col):
     st.subheader("Raw Data Explorer")
 
-    # Quick filters in columns
+    # Quick filters in columns — all multiselect
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        accounts = sorted(df["PARTNER_ASSIGNMENT"].unique().tolist())
-        acct = st.selectbox("Account", accounts, index=None, placeholder="All — type to search...", key="raw_acct")
+        accounts = sorted(df["PARTNER_ASSIGNMENT"].dropna().unique().tolist())
+        acct = st.multiselect("Account", accounts, placeholder="All — type to search...", key="raw_acct")
     with col2:
-        ppms = sorted(df["PPM"].unique().tolist())
-        ppm = st.selectbox("PPM", ppms, index=None, placeholder="All — type to search...", key="raw_ppm")
+        ppms = sorted(df["PPM"].dropna().unique().tolist())
+        ppm = st.multiselect("PPM", ppms, placeholder="All — type to search...", key="raw_ppm")
     with col3:
         clinics = sorted(df["REFERRING_CLINIC"].dropna().unique().tolist())
-        clinic = st.selectbox("Clinic", clinics, index=None, placeholder="All — type to search...", key="raw_clinic")
+        clinic = st.multiselect("Clinic", clinics, placeholder="All — type to search...", key="raw_clinic")
     with col4:
         providers = sorted(df["REFERRING_PHYSICIAN"].dropna().unique().tolist())
-        provider = st.selectbox("Provider", providers, index=None, placeholder="All — type to search...", key="raw_provider")
+        provider = st.multiselect("Provider", providers, placeholder="All — type to search...", key="raw_provider")
 
     filtered = df.copy()
     if acct:
-        filtered = filtered[filtered["PARTNER_ASSIGNMENT"] == acct]
+        filtered = filtered[filtered["PARTNER_ASSIGNMENT"].isin(acct)]
     if ppm:
-        filtered = filtered[filtered["PPM"] == ppm]
+        filtered = filtered[filtered["PPM"].isin(ppm)]
     if clinic:
-        filtered = filtered[filtered["REFERRING_CLINIC"] == clinic]
+        filtered = filtered[filtered["REFERRING_CLINIC"].isin(clinic)]
     if provider:
-        filtered = filtered[filtered["REFERRING_PHYSICIAN"] == provider]
+        filtered = filtered[filtered["REFERRING_PHYSICIAN"].isin(provider)]
 
     # Display columns (exclude internal/derived, keep useful ones)
     display_cols = [

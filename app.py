@@ -137,7 +137,7 @@ with st.sidebar:
             ):
                 st.session_state["region"] = reg
                 # Reset date range so it recalculates for the new region
-                for k in ["date_range", "tabs_viewed"]:
+                for k in ["date_range", "date_range_pinned", "tabs_viewed"]:
                     st.session_state.pop(k, None)
                 st.rerun()
 
@@ -162,21 +162,28 @@ with st.sidebar:
     # Default to Jan-to-date on first load (or after region switch clears the key)
     if "date_range" not in st.session_state:
         st.session_state["date_range"] = (jan_start, max_date)
-    else:
-        # If new data arrived with a later max_date, advance the stored end date automatically
+        st.session_state["date_range_pinned"] = True   # pinned = follow max_date automatically
+    elif st.session_state.get("date_range_pinned", True):
+        # Only auto-advance end date when user is pinned to "latest data"
         stored = st.session_state["date_range"]
         if len(stored) == 2 and stored[1] < max_date:
             st.session_state["date_range"] = (stored[0], max_date)
+
+    def _on_date_change():
+        # User manually picked dates — stop auto-advancing end date
+        st.session_state["date_range_pinned"] = False
 
     # ── Quick preset buttons ──────────────────────────────────────────────────
     p1, p2 = st.columns(2)
     with p1:
         if st.button("2026 to Date", use_container_width=True, key="preset_jan"):
             st.session_state["date_range"] = (jan_start, max_date)
+            st.session_state["date_range_pinned"] = True
             st.rerun()
     with p2:
         if st.button("Quarter to Date", use_container_width=True, key="preset_qtd"):
             st.session_state["date_range"] = (qtd_start, max_date)
+            st.session_state["date_range_pinned"] = True
             st.rerun()
 
     # ── Date picker ──────────────────────────────────────────────────────────
@@ -190,6 +197,7 @@ with st.sidebar:
         min_value=min_date, max_value=max_date,
         key="date_range",
         label_visibility="collapsed",
+        on_change=_on_date_change,
     )
 
     # Keep full region data for retention (before date filter)
@@ -213,18 +221,6 @@ with st.sidebar:
     st.divider()
     st.caption(f"{len(df):,} {region_cfg['short']} referrals loaded")
     st.caption(f"Data as of {df['REFERRAL_DATE'].max().strftime('%b %d, %Y')}")
-
-    # Full Excel export
-    from components.excel_export import generate_full_export
-    excel_bytes = generate_full_export(df, period_col)
-    if excel_bytes:
-        st.download_button(
-            "Export Full Dashboard to Excel",
-            excel_bytes,
-            file_name=f"{region_cfg['short']}_Control_Tower_Export.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            key="full_excel_export",
-        )
 
     # Usage log viewer
     with st.expander("Usage Log"):
@@ -284,7 +280,7 @@ with tab2:
 
 with tab5:
     _track_tab("Visit Prep")
-    visit_prep.render(df, period_col)
+    visit_prep.render(df, period_col, df_full=df_region_full)
 
 with tab_quota:
     _track_tab("Quota")

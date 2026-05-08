@@ -223,7 +223,11 @@ class ReportPDF(FPDF):
             if has_color:
                 self.set_fill_color(*row_colors[ri])
             for i, val in enumerate(row):
-                self.cell(col_widths[i], 5, _safe(str(val)[:30]), border=1, fill=has_color, align="C")
+                val_str = str(val)
+                max_chars = max(8, int(col_widths[i] / 2.1))  # ~2.1mm per char at 8pt
+                if len(val_str) > max_chars:
+                    val_str = val_str[:max_chars - 3] + "..."
+                self.cell(col_widths[i], 5, _safe(val_str), border=1, fill=has_color, align="C")
             self.ln()
         self.ln(3)
 
@@ -610,7 +614,7 @@ def generate_account_report(df, account_names, period_col):
     return buf.getvalue()
 
 
-def generate_visit_prep_report(df, clinic_name, nearby_df, period_col):
+def generate_visit_prep_report(df, clinic_name, nearby_df, period_col, days_window=14, window_label=None):
     """Generate a PDF briefing for a clinic visit."""
     clinic_df = df[df["REFERRING_CLINIC"] == clinic_name]
     if clinic_df.empty:
@@ -641,38 +645,67 @@ def generate_visit_prep_report(df, clinic_name, nearby_df, period_col):
         pdf.kv("Last Referral", f"{last_ref.strftime('%Y-%m-%d')} ({days_since}d ago)")
     pdf.ln(3)
 
-    # Top providers
+    # Top providers — join NPI via provider_id
+    has_npi = "REFERRING_PROVIDER_NPI" in clinic_df.columns and "provider_id" in clinic_df.columns
     prov_agg = clinic_df.groupby("REFERRING_PHYSICIAN").agg(
         referrals=("REFERRAL_ID", "count"),
         visit_booked=("visit_booked", "sum"),
         last_ref=("REFERRAL_DATE", "max"),
     ).reset_index()
+    if has_npi:
+        npi_map = (
+            clinic_df.dropna(subset=["REFERRING_PHYSICIAN", "REFERRING_PROVIDER_NPI"])
+            .groupby("REFERRING_PHYSICIAN")["REFERRING_PROVIDER_NPI"]
+            .first()
+            .astype(str).str.replace(r"\.0$", "", regex=True)
+            .replace({"nan": "", "None": ""})
+        )
+        prov_agg["npi"] = prov_agg["REFERRING_PHYSICIAN"].map(npi_map).fillna("")
     prov_agg["pct_booked"] = (prov_agg["visit_booked"] / prov_agg["referrals"]).fillna(0)
     prov_agg = prov_agg.sort_values("referrals", ascending=False).head(10)
 
     if not prov_agg.empty:
         pdf.section("Top Providers at This Clinic")
         pdf.date_note(date_range)
-        headers = ["Provider", "Referrals", "% Booked", "Last Referral"]
-        rows = []
-        for _, r in prov_agg.iterrows():
-            rows.append([
-                str(r["REFERRING_PHYSICIAN"])[:25],
-                int(r["referrals"]),
-                f"{r['pct_booked']:.1%}",
-                r["last_ref"].strftime("%Y-%m-%d") if pd.notna(r["last_ref"]) else "--",
-            ])
-        pdf.table(headers, rows, col_widths=[50, 25, 25, 35])
+        if has_npi:
+            headers = ["Provider", "NPI", "Referrals", "% Booked", "Last Referral"]
+            col_widths = [45, 28, 20, 20, 30]
+            rows = []
+            for _, r in prov_agg.iterrows():
+                rows.append([
+                    str(r["REFERRING_PHYSICIAN"])[:22],
+                    str(r.get("npi", ""))[:15],
+                    int(r["referrals"]),
+                    f"{r['pct_booked']:.1%}",
+                    r["last_ref"].strftime("%Y-%m-%d") if pd.notna(r["last_ref"]) else "--",
+                ])
+        else:
+            headers = ["Provider", "Referrals", "% Booked", "Last Referral"]
+            col_widths = [50, 25, 25, 35]
+            rows = []
+            for _, r in prov_agg.iterrows():
+                rows.append([
+                    str(r["REFERRING_PHYSICIAN"])[:25],
+                    int(r["referrals"]),
+                    f"{r['pct_booked']:.1%}",
+                    r["last_ref"].strftime("%Y-%m-%d") if pd.notna(r["last_ref"]) else "--",
+                ])
+        pdf.table(headers, rows, col_widths=col_widths)
 
     # Referral Status Report (before nearby clinics)
-    pdf.section("Referral Status Report - Last 14 Days")
+    section_label = window_label or (f"Last {days_window} Days" if days_window else "All Time")
+    pdf.section(f"Referral Status Report - {section_label}")
     today = pd.Timestamp.now().normalize()
-    cutoff = today - pd.Timedelta(days=14)
-    recent = clinic_df[clinic_df["REFERRAL_DATE"] >= cutoff].sort_values("REFERRAL_DATE", ascending=False)
+    if days_window is not None:
+        cutoff = today - pd.Timedelta(days=days_window)
+        recent = clinic_df[clinic_df["REFERRAL_DATE"] >= cutoff].sort_values("REFERRAL_DATE", ascending=False)
+    else:
+        recent = clinic_df.sort_values("REFERRAL_DATE", ascending=False)
+        cutoff = clinic_df["REFERRAL_DATE"].min() if not clinic_df.empty else today
 
     if recent.empty:
         pdf.set_font("Helvetica", "", 10)
-        pdf.cell(0, 6, _safe("No referrals in the last 14 days."), ln=True)
+        pdf.cell(0, 6, _safe(f"No referrals in the selected window ({section_label})."), ln=True)
         pdf.ln(3)
     else:
         pdf.date_note(f"Referrals from {cutoff.strftime('%b %d')} to {today.strftime('%b %d, %Y')}")
@@ -711,21 +744,6 @@ def generate_visit_prep_report(df, clinic_name, nearby_df, period_col):
         pdf.set_font("Helvetica", "I", 8)
         pdf.cell(0, 5, _safe(summary), ln=True)
         pdf.ln(3)
-
-    # Nearby Clinics (after status report)
-    if nearby_df is not None and not nearby_df.empty:
-        pdf.section("Nearby Clinics")
-        headers = ["Clinic", "Account", "Distance", "Referrals", "% Booked"]
-        rows = []
-        for _, r in nearby_df.head(15).iterrows():
-            rows.append([
-                r["REFERRING_CLINIC"][:25],
-                r["PARTNER_ASSIGNMENT"][:20],
-                f"{r['distance_mi']:.1f} mi",
-                int(r["referrals"]),
-                f"{r['pct_booked']:.1%}",
-            ])
-        pdf.table(headers, rows, col_widths=[50, 40, 20, 22, 22])
 
     buf = io.BytesIO()
     pdf.output(buf)
@@ -844,7 +862,7 @@ def generate_provider_status_report(df_full: pd.DataFrame, provider_name: str):
     for _, r in all_refs.iterrows():
         status = _derive_status(r)
         ref_date = r["REFERRAL_DATE"].strftime("%m/%d/%Y") if pd.notna(r["REFERRAL_DATE"]) else ""
-        clinic = str(r.get("REFERRING_CLINIC", ""))[:35]
+        clinic = str(r.get("REFERRING_CLINIC", ""))
         patient = str(r.get("patient_name", ""))[:25] if pd.notna(r.get("patient_name")) else ""
         if has_dob and pd.notna(r.get("PATIENT_DOB")):
             dob = r["PATIENT_DOB"].strftime("%m/%d/%Y") if hasattr(r["PATIENT_DOB"], "strftime") else str(r["PATIENT_DOB"])[:10]

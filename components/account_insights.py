@@ -113,6 +113,25 @@ def _top_physicians(sub: pd.DataFrame, n: int = 5) -> list[str]:
     )
 
 
+def _top_physicians_any(sub: pd.DataFrame, n: int = 5) -> list[str]:
+    """Like _top_physicians but falls back to REFERRING_PROVIDER then provider_id.
+    Used for new clinics where a single referral may lack a REFERRING_PHYSICIAN value."""
+    for col in ("REFERRING_PHYSICIAN", "REFERRING_PROVIDER", "provider_id"):
+        if col not in sub.columns:
+            continue
+        names = (
+            sub[col].dropna()
+            .astype(str)
+            .loc[lambda s: s.str.strip().ne("") & s.str.strip().ne("nan")]
+            .value_counts()
+            .head(n)
+            .index.tolist()
+        )
+        if names:
+            return names
+    return []
+
+
 def _clinic_zip(sub: pd.DataFrame) -> str | None:
     if "REFERRING_CLINIC_ZIP" not in sub.columns:
         return None
@@ -155,6 +174,7 @@ def compute_account_insights(
     df: pd.DataFrame,
     period_col: str,
     max_insights: int = 4,
+    df_full: pd.DataFrame | None = None,
 ) -> list[AccountInsight]:
     """Return up to max_insights AccountInsight objects for a single-account df slice."""
     if df.empty:
@@ -243,7 +263,7 @@ def compute_account_insights(
             all_table_rows.append({
                 "Clinic":              c,
                 "Signal":              f"Refs/Day {pct_str}",
-                "Key Providers to Visit":  ", ".join(_top_physicians(pc)) or "—",
+                "Key Providers to Visit":  " | ".join(_top_physicians(pc)) or "—",
                 f"Refs ({curr_lbl})":  len(cc),
                 f"Refs ({prev_lbl})":  len(pc),
                 "Refs/Day Change":     pct_str,
@@ -264,8 +284,9 @@ def compute_account_insights(
     if intake_rate is not None and intake_rate < _INTAKE_WATCH and curr_n >= _MIN_REFS:
 
         agg = _clinic_agg(curr_df)
-        valid = agg[agg["refs"] >= _MIN_REFS]
-        all_top = valid["refs"].sort_values(ascending=False).index.tolist()
+        valid = agg[agg["refs"] >= _MIN_COHORT]
+        # Sort by intake rate ascending — worst offenders first
+        all_top = valid["intake_rate"].sort_values(ascending=True).index.tolist()
         top = all_top[:3]
 
         clinics, all_table_rows = [], []
@@ -281,7 +302,7 @@ def compute_account_insights(
             all_table_rows.append({
                 "Clinic":              c,
                 "Signal":              f"Ref→Intake {status}: {rate:.0%}",
-                "Key Providers to Visit":  ", ".join(_top_physicians(sub)) or "—",
+                "Key Providers to Visit":  " | ".join(_top_physicians(sub)) or "—",
                 f"Refs ({curr_lbl})":  int(r["refs"]),
                 "Intake Started":      int(r["intake"]),
                 "Ref→Intake":          f"{rate:.0%}",
@@ -309,9 +330,9 @@ def compute_account_insights(
         curr_agg = _clinic_agg(curr_df)[["refs", "intake", "intake_rate"]]
         prev_agg = _clinic_agg(prev_df)[["intake_rate"]].rename(columns={"intake_rate": "prev_ir"})
         ir_df    = curr_agg.join(prev_agg, how="inner").dropna(subset=["intake_rate", "prev_ir"])
-        ir_df    = ir_df[ir_df["refs"] >= _MIN_REFS]
+        ir_df    = ir_df[ir_df["refs"] >= _MIN_COHORT]
         ir_df["drop_pp"] = (ir_df["prev_ir"] - ir_df["intake_rate"]) * 100
-        all_top = ir_df[ir_df["drop_pp"] > 0].sort_values("refs", ascending=False).index.tolist()
+        all_top = ir_df[ir_df["drop_pp"] > 0].sort_values("drop_pp", ascending=False).index.tolist()
         top = all_top[:3]
 
         clinics, all_table_rows = [], []
@@ -326,7 +347,7 @@ def compute_account_insights(
             all_table_rows.append({
                 "Clinic":                       c,
                 "Signal":                       f"Ref→Intake −{drop:.1f}pp",
-                "Key Providers to Visit":           ", ".join(_top_physicians(sub)) or "—",
+                "Key Providers to Visit":           " | ".join(_top_physicians(sub)) or "—",
                 f"Ref→Intake ({curr_lbl})":     f"{r['intake_rate']:.0%}",
                 f"Ref→Intake ({prev_lbl})":     f"{r['prev_ir']:.0%}",
                 "Change":                       f"−{drop:.1f}pp",
@@ -379,7 +400,7 @@ def compute_account_insights(
                     all_table_rows.append({
                         "Clinic":                      c,
                         "Signal":                      f"M1: {int(clinic_lost.loc[c,'lost_count'])} providers lapsed",
-                        "Key Providers to Visit":  ", ".join(names[:3]) or "—",
+                        "Key Providers to Visit":  " | ".join(names[:3]) or "—",
                         "Providers Who Didn't Return":  int(clinic_lost.loc[c, "lost_count"]),
                         "Their Refs Last Period":       int(clinic_lost.loc[c, "refs"]),
                     })
@@ -487,7 +508,7 @@ def compute_account_insights(
                 term_sub = sub[sub["TERMINATION_REASON"].notna()]
                 all_table_rows.append({
                     "Clinic":              c,
-                    "Key Providers to Visit":  ", ".join(_top_physicians(term_sub)) or "—",
+                    "Key Providers to Visit":  " | ".join(_top_physicians(term_sub)) or "—",
                     "Terminated":          len(term_sub),
                     "Termination Rate":    f"{len(term_sub)/len(sub):.0%}" if len(sub) else "—",
                     "Top Reason":          (term_sub["TERMINATION_REASON"].value_counts().index[0]
@@ -531,7 +552,7 @@ def compute_account_insights(
             ))
             all_table_rows.append({
                 "Clinic":              c,
-                "Key Providers to Visit":  ", ".join(_top_physicians(cc)) or "—",
+                "Key Providers to Visit":  " | ".join(_top_physicians(cc)) or "—",
                 f"Refs ({curr_lbl})":  len(cc),
                 f"Refs ({prev_lbl})":  len(pc),
                 "Refs/Day Change":     pct_str,
@@ -557,8 +578,13 @@ def compute_account_insights(
         cutoff = None
 
     if cutoff is not None:
-        first_ref   = df.groupby("REFERRING_CLINIC")["REFERRAL_DATE"].min()
+        # Use full unfiltered dataset to check true first-ever referral date —
+        # avoids falsely flagging clinics whose pre-date-range history is hidden by the filter.
+        ref_source  = df_full if df_full is not None else df
+        first_ref   = ref_source.groupby("REFERRING_CLINIC")["REFERRAL_DATE"].min()
         new_clinics = first_ref[first_ref >= cutoff].index.tolist()
+        # Restrict to clinics actually present in the current account/period slice
+        new_clinics = [c for c in new_clinics if c in curr_df["REFERRING_CLINIC"].values]
 
         if new_clinics:
             clinics = [_build_visit_clinic(df, c, "First-time referrer — visit to welcome and set expectations")
@@ -570,7 +596,7 @@ def compute_account_insights(
                 b   = float(sub["visit_booked"].sum())
                 all_table_rows.append({
                     "Clinic":          c,
-                    "Key Providers to Visit": ", ".join(_top_physicians(sub)) or "—",
+                    "Key Providers to Visit": " | ".join(_top_physicians_any(sub)) or "—",
                     "Refs":            len(sub),
                     "Ref→Intake":      f"{i/len(sub):.0%}" if len(sub) > 0 else "—",
                     "Intake→Booked":   f"{b/i:.0%}" if i > 0 else "—",
@@ -610,7 +636,7 @@ def compute_account_insights(
                 r   = all_champs.loc[c]
                 all_table_rows.append({
                     "Clinic":          c,
-                    "Key Providers to Visit": ", ".join(_top_physicians(sub)) or "—",
+                    "Key Providers to Visit": " | ".join(_top_physicians(sub)) or "—",
                     "Refs":            int(r["refs"]),
                     "Ref→Intake":      f"{r['intake_rate']:.0%}",
                     "Intake→Booked":   f"{r['booked_rate']:.0%}",
@@ -620,8 +646,8 @@ def compute_account_insights(
 
             insights.append(AccountInsight(
                 type="champion", sentiment="positive",
-                headline=f"{len(champs)} champion clinic{'s' if len(champs)>1 else ''} driving volume and conversion",
-                detail="Above-median referral volume and booking rate this period.",
+                headline=f"{len(all_top)} champion clinic{'s' if len(all_top)>1 else ''} driving volume and conversion",
+                detail=f"Above-median referral volume and booking rate in {curr_lbl}.",
                 visit_action="Stop by to say thanks — champions who feel recognized refer more.",
                 clinics=clinics, table_data=table_rows[:3], full_table_data=all_table_rows, priority=3,
             ))

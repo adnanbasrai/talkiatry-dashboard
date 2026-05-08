@@ -1,10 +1,11 @@
+import base64
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
 from data.transforms import compute_metrics, compute_entity_table, compute_period_metrics
 from components.nearby_map import build_clinic_geo_table, find_nearby_clinics, render_nearby_map, haversine_miles
 from components.geo_map import geocode_zips
-from components.pdf_export import generate_visit_prep_report
+from components.pdf_export import generate_visit_prep_report, generate_provider_status_report
 from components.provider_search import search_nppes, render_provider_search_results
 
 PROV_ICON = "&#x1F9D1;&#x200D;&#x2695;&#xFE0F;"
@@ -12,33 +13,59 @@ CLINIC_ICON = "&#x1F3E5;"
 LINE_STYLE = "margin: 2px 0 2px 12px; font-size: 13px; color: #333;"
 SECTION_STYLE = "margin: 12px 0 4px 0; font-size: 15px; font-weight: 700; color: #1a1a2e; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 3px;"
 
+_WINDOW_OPTIONS = {"Last 14 Days": 14, "Last 30 Days": 30, "Last 60 Days": 60, "Last 90 Days": 90, "All Time": None}
+
+
+@st.cache_data(show_spinner=False)
+def _cached_provider_pdf(df_full, provider_name):
+    return generate_provider_status_report(df_full, provider_name)
+
 
 @st.fragment
-def render(df, period_col):
+def render(df, period_col, df_full=None):
     mode = st.radio("Mode", ["Look up existing clinic", "Prospect new clinics"], horizontal=True, key="vp_top_mode")
 
     if mode == "Look up existing clinic":
-        _render_clinic_briefing(df, period_col)
+        _render_clinic_briefing(df, period_col, df_full=df_full)
     else:
         _render_prospect_importer(df, period_col)
 
 
-def _render_clinic_briefing(df, period_col):
-    """Existing clinic lookup — shows KPIs, recent referrals, nearby clinics map."""
+def _render_clinic_briefing(df, period_col, df_full=None):
+    """Existing clinic/provider lookup — shows KPIs, recent referrals, nearby clinics map."""
     st.subheader("Visit Prep")
-    st.caption("Search for a clinic or zip code to get a briefing before your visit.")
+    st.caption("Search for a provider, clinic, or zip code to get a briefing before your visit.")
 
-    search_mode = st.radio("Search by", ["Clinic", "Zip Code"], horizontal=True, key="vp_mode")
+    search_mode = st.radio("Search by", ["Provider", "Clinic", "Zip Code"], horizontal=True, key="vp_mode")
 
     clinic_geo = build_clinic_geo_table(df)
     all_clinics = sorted(df["REFERRING_CLINIC"].dropna().unique().tolist())
 
     target_clinic = None
+    target_provider = None
     target_zip = None
     target_lat = None
     target_lng = None
 
-    if search_mode == "Clinic":
+    if search_mode == "Provider":
+        all_providers = sorted(df["REFERRING_PHYSICIAN"].dropna().unique().tolist())
+        selected_prov = st.selectbox(
+            "Provider", options=all_providers, index=None,
+            placeholder="Type to search...", key="vp_provider",
+        )
+        if selected_prov:
+            target_provider = selected_prov
+            prov_df = df[df["REFERRING_PHYSICIAN"] == selected_prov]
+            primary_clinic = prov_df["REFERRING_CLINIC"].mode()
+            if not primary_clinic.empty:
+                primary_clinic = primary_clinic.iloc[0]
+                clinic_rows = clinic_geo[clinic_geo["REFERRING_CLINIC"] == primary_clinic]
+                if not clinic_rows.empty and pd.notna(clinic_rows.iloc[0].get("lat")):
+                    target_lat = clinic_rows.iloc[0]["lat"]
+                    target_lng = clinic_rows.iloc[0]["lng"]
+                    target_zip = clinic_rows.iloc[0].get("REFERRING_CLINIC_ZIP")
+
+    elif search_mode == "Clinic":
         selected = st.selectbox(
             "Clinic", options=all_clinics, index=None,
             placeholder="Type to search...", key="vp_clinic",
@@ -64,24 +91,70 @@ def _render_clinic_briefing(df, period_col):
                 target_lng = geo.iloc[0]["lng"]
 
     if not target_lat or not target_lng:
-        if target_clinic or target_zip:
+        if target_clinic or target_zip or target_provider:
             st.warning("Could not geocode this location.")
         return
 
-    # PDF export at top
+    _PRIVACY_NOTE = (
+        '<div style="background:#dc3545;color:white;padding:10px 14px;border-radius:6px;'
+        'font-size:13px;margin:6px 0 4px 0;font-weight:500;">'
+        '🔒 <b>Patient-sensitive information.</b> This table contains individual referral records '
+        'that may include patient names and dates. Please handle responsibly — do not share '
+        'screenshots or printouts in public settings.'
+        '</div>'
+    )
+    _PRIVACY_BANNER = (
+        '<div style="background:#dc3545;color:white;padding:10px 14px;border-radius:6px;'
+        'font-size:13px;margin-bottom:10px;font-weight:500;">'
+        '🔒 <b>Patient-Sensitive Information</b> — This report contains individual patient '
+        'referral records. Please be responsible when sharing this information.'
+        '</div>'
+    )
+
+    # ── Provider briefing ────────────────────────────────────────────────────
+    if target_provider:
+        # PDF export
+        _pdf_src = df_full if df_full is not None else df
+        pdf_bytes = _cached_provider_pdf(_pdf_src, target_provider)
+        if pdf_bytes:
+            st.download_button(
+                "Export Provider Briefing PDF", pdf_bytes,
+                file_name=f"provider_{target_provider.replace(' ', '_')[:30]}.pdf",
+                mime="application/pdf", key="vp_prov_pdf_export",
+            )
+        show_refs_prov = st.checkbox(
+            "Show visit state referral status report",
+            key="vp_show_refs_prov",
+        )
+        if show_refs_prov:
+            st.markdown(_PRIVACY_NOTE, unsafe_allow_html=True)
+        _render_provider_card(df, target_provider, period_col)
+        if show_refs_prov:
+            st.markdown(_PRIVACY_BANNER, unsafe_allow_html=True)
+            _render_recent_referrals(df[df["REFERRING_PHYSICIAN"] == target_provider], key_suffix="prov")
+
+    # ── Clinic briefing ──────────────────────────────────────────────────────
     if target_clinic:
-        nearby_for_pdf = find_nearby_clinics(build_clinic_geo_table(df), target_lat, target_lng, radius_miles=3, exclude_clinic=target_clinic)
-        pdf_bytes = generate_visit_prep_report(df, target_clinic, nearby_for_pdf, period_col)
+        nearby_for_pdf = find_nearby_clinics(clinic_geo, target_lat, target_lng, radius_miles=3, exclude_clinic=target_clinic)
+        _window_label = st.session_state.get("vp_window_clinic", "Last 14 Days")
+        _window_days = _WINDOW_OPTIONS.get(_window_label, 14)
+        pdf_bytes = generate_visit_prep_report(df, target_clinic, nearby_for_pdf, period_col, days_window=_window_days, window_label=_window_label)
         if pdf_bytes:
             st.download_button(
                 "Export Visit Briefing PDF", pdf_bytes,
                 file_name=f"visit_prep_{target_clinic.replace(' ', '_')[:30]}.pdf",
                 mime="application/pdf", key="vp_pdf_export",
             )
-
-    if target_clinic:
-        _render_clinic_card(df, target_clinic, period_col)
-        _render_recent_patients(df, target_clinic)
+        show_refs_clinic = st.checkbox(
+            "Show visit state referral status report",
+            key="vp_show_refs_clinic",
+        )
+        if show_refs_clinic:
+            st.markdown(_PRIVACY_NOTE, unsafe_allow_html=True)
+        _render_clinic_card(df, target_clinic, period_col, df_full=df_full)
+        if show_refs_clinic:
+            st.markdown(_PRIVACY_BANNER, unsafe_allow_html=True)
+            _render_recent_referrals(df[df["REFERRING_CLINIC"] == target_clinic], key_suffix="clinic")
 
     if search_mode == "Zip Code" and target_zip:
         zip_clinics = df[df["REFERRING_CLINIC_ZIP"] == target_zip]
@@ -89,12 +162,21 @@ def _render_clinic_briefing(df, period_col):
             st.subheader(f"Clinics in {target_zip}")
             from components.entity_table import render_entity_table
             render_entity_table(zip_clinics, "REFERRING_CLINIC", period_col, label="Clinic", include_account=True)
+        show_refs_zip = st.checkbox(
+            "Show visit state referral status report",
+            key="vp_show_refs_zip",
+        )
+        if show_refs_zip:
+            st.markdown(_PRIVACY_NOTE, unsafe_allow_html=True)
+            st.markdown(_PRIVACY_BANNER, unsafe_allow_html=True)
+            _render_recent_referrals(df[df["REFERRING_CLINIC_ZIP"] == target_zip], key_suffix="zip")
 
+    # ── Nearby clinics (shown for all search types) ──────────────────────────
     st.subheader("Nearby Clinics")
     radius = st.radio("Radius", [1, 3, 5], index=1, horizontal=True, key="vp_radius", format_func=lambda x: f"{x} mile{'s' if x > 1 else ''}")
     nearby = find_nearby_clinics(clinic_geo, target_lat, target_lng, radius_miles=radius, exclude_clinic=target_clinic)
 
-    target_name = target_clinic or f"Zip {target_zip}"
+    target_name = target_provider or target_clinic or f"Zip {target_zip}"
     render_nearby_map(target_lat, target_lng, target_name, nearby)
 
     if not nearby.empty:
@@ -127,8 +209,6 @@ def _render_clinic_briefing(df, period_col):
         })
         st.dataframe(display.reset_index(drop=True), use_container_width=True, hide_index=True)
 
-    # PDF export already at top of page
-
 
 def _render_prospect_importer(df, period_col):
     """New prospect clinic importer — NPI search, add to chase list."""
@@ -145,7 +225,6 @@ def _render_prospect_importer(df, period_col):
         if uploaded:
             try:
                 prospect_df = pd.read_csv(uploaded)
-                # Normalize column names
                 prospect_df.columns = [c.strip().lower().replace(" ", "_") for c in prospect_df.columns]
                 if "name" not in prospect_df.columns or "zip" not in prospect_df.columns:
                     st.error("CSV must have `name` and `zip` columns.")
@@ -176,12 +255,9 @@ def _render_prospect_importer(df, period_col):
     if prospect_df is None or prospect_df.empty:
         return
 
-    # Clean zips
     prospect_df["zip"] = prospect_df["zip"].astype(str).str.strip().str.split("-").str[0].str.zfill(5)
-
     st.success(f"{len(prospect_df)} clinics imported")
 
-    # Geocode all prospect zips
     unique_zips = prospect_df["zip"].unique().tolist()
     geo = geocode_zips(unique_zips)
     if geo.empty:
@@ -191,7 +267,6 @@ def _render_prospect_importer(df, period_col):
     prospect_df = prospect_df.merge(geo, left_on="zip", right_on="zip", how="left")
     clinic_geo = build_clinic_geo_table(df)
 
-    # Generate briefing for each prospect
     for idx, row in prospect_df.iterrows():
         name = row["name"]
         zip_code = row["zip"]
@@ -214,7 +289,6 @@ def _render_prospect_importer(df, period_col):
             st.divider()
             continue
 
-        # Check if this clinic already exists in our data
         existing = df[df["REFERRING_CLINIC"].str.contains(name, case=False, na=False)]
         if not existing.empty:
             m = compute_metrics(existing)
@@ -225,7 +299,6 @@ def _render_prospect_importer(df, period_col):
                 unsafe_allow_html=True,
             )
 
-        # Find nearby referring clinics
         nearby = find_nearby_clinics(clinic_geo, lat, lng, radius_miles=3)
         nearby_count = len(nearby)
         nearby_refs = int(nearby["referrals"].sum()) if not nearby.empty else 0
@@ -235,7 +308,6 @@ def _render_prospect_importer(df, period_col):
         col2.metric("Nearby Referrals", f"{nearby_refs:,}")
         col3.metric("Top Nearby Account", nearby.iloc[0]["PARTNER_ASSIGNMENT"] if not nearby.empty else "None")
 
-        # --- NPI Registry: providers AT this clinic ---
         with st.expander(f"Providers at {name} (NPI Registry)", expanded=True):
             npi_results = search_nppes(clinic_name=name, zip_code=zip_code, limit=50)
             if not npi_results.empty:
@@ -245,10 +317,7 @@ def _render_prospect_importer(df, period_col):
                 st.caption(f"No primary care providers found in NPI registry for zip {zip_code}")
 
         if not nearby.empty:
-            # Map
             render_nearby_map(lat, lng, name, nearby)
-
-            # Top 5 nearby clinics table
             top5 = nearby.head(5)[[
                 "REFERRING_CLINIC", "PARTNER_ASSIGNMENT", "distance_mi",
                 "referrals", "providers", "pct_booked",
@@ -262,7 +331,6 @@ def _render_prospect_importer(df, period_col):
             })
             st.dataframe(top5.reset_index(drop=True), use_container_width=True, hide_index=True)
 
-            # Top referring providers in the area (from Talkiatry data)
             nearby_zips = set(nearby["REFERRING_CLINIC_ZIP"].dropna())
             area_providers = df[df["REFERRING_CLINIC_ZIP"].isin(nearby_zips)]
             if not area_providers.empty:
@@ -283,13 +351,11 @@ def _render_prospect_importer(df, period_col):
 
 def _get_referral_status(row):
     """Map a referral row to a clear status with termination reason where applicable."""
-    # Terminal states first
     if row.get("visit_completed") == 1:
         return "Visit Completed"
     if row.get("visit_booked") == 1:
         return "Visit Booked"
 
-    # Rejected / terminated — show why
     action = row.get("INTAKE_ACTION_STATUS", "")
     termination = row.get("TERMINATION_REASON", "")
     if action == "Rejected":
@@ -309,7 +375,6 @@ def _get_referral_status(row):
                 return f"Rejected — {tr[:30]}"
         return "Rejected"
 
-    # Intake completed but not booked
     is_completed = row.get("IS_INTAKE_COMPLETED")
     if is_completed == 1 and action == "NonResponsive":
         return "Intake Done — Non-Responsive"
@@ -318,7 +383,6 @@ def _get_referral_status(row):
     if is_completed == 1:
         return "Intake Completed"
 
-    # In-progress states
     if action == "NonResponsive":
         return "Non-Responsive"
     if action == "New":
@@ -333,7 +397,6 @@ def _get_referral_status(row):
 
 
 def _status_color(status):
-    """Return a background color for a referral status."""
     if "Completed" in status or "Visit" in status:
         return "#d4edda"
     if "Booked" in status:
@@ -349,42 +412,59 @@ def _status_color(status):
     return "#f5f7fa"
 
 
-def _render_recent_patients(df, clinic_name):
-    """Show recent patient referrals for a clinic — last 14 days."""
-    today = pd.Timestamp.now().normalize()
-    cutoff = today - pd.Timedelta(days=14)
+def _render_recent_referrals(slice_df: pd.DataFrame, key_suffix: str = ""):
+    """Render recent referrals with a window toggle (14 / 30 / 60 / 90 / all time)."""
+    window_key = f"vp_window_{key_suffix}"
+    window_label = st.segmented_control(
+        "Show referrals from",
+        options=list(_WINDOW_OPTIONS.keys()),
+        default="Last 14 Days",
+        key=window_key,
+        label_visibility="collapsed",
+    ) or "Last 14 Days"
 
-    clinic_df = df[(df["REFERRING_CLINIC"] == clinic_name) & (df["REFERRAL_DATE"] >= cutoff)]
-    if clinic_df.empty:
-        st.caption("No referrals from this clinic in the last 14 days.")
+    days = _WINDOW_OPTIONS[window_label]
+    today = pd.Timestamp.now().normalize()
+
+    if days is not None:
+        cutoff = today - pd.Timedelta(days=days)
+        display_df = slice_df[slice_df["REFERRAL_DATE"] >= cutoff].copy()
+        date_label = f"{cutoff.strftime('%b %d, %Y')} — {today.strftime('%b %d, %Y')}"
+    else:
+        display_df = slice_df.copy()
+        d_min = slice_df["REFERRAL_DATE"].min()
+        date_label = f"{d_min.strftime('%b %d, %Y')} — {today.strftime('%b %d, %Y')}" if pd.notna(d_min) else ""
+
+    title = f"Recent Referrals — {window_label} ({len(display_df)})"
+
+    if display_df.empty:
+        st.subheader(title)
+        st.caption(f"No referrals in this window.")
         return
 
-    clinic_df = clinic_df.sort_values("REFERRAL_DATE", ascending=False).copy()
-    clinic_df["status"] = clinic_df.apply(_get_referral_status, axis=1)
-    clinic_df["ref_date"] = clinic_df["REFERRAL_DATE"].dt.strftime("%Y-%m-%d")
+    display_df = display_df.sort_values("REFERRAL_DATE", ascending=False)
+    display_df["status"] = display_df.apply(_get_referral_status, axis=1)
+    display_df["ref_date"] = display_df["REFERRAL_DATE"].dt.strftime("%Y-%m-%d")
 
-    # Format DOB if available, fallback to age
-    if "PATIENT_DOB" in clinic_df.columns:
-        clinic_df["dob_display"] = clinic_df["PATIENT_DOB"].dt.strftime("%m/%d/%Y")
-        dob_col = "dob_display"
-        dob_label = "DOB"
-    elif "PATIENT_AGE" in clinic_df.columns:
-        dob_col = "PATIENT_AGE"
-        dob_label = "Age"
+    if "PATIENT_DOB" in display_df.columns:
+        display_df["dob_display"] = display_df["PATIENT_DOB"].dt.strftime("%m/%d/%Y")
+        dob_col, dob_label = "dob_display", "DOB"
+    elif "PATIENT_AGE" in display_df.columns:
+        dob_col, dob_label = "PATIENT_AGE", "Age"
     else:
-        dob_col = None
-        dob_label = None
+        dob_col, dob_label = None, None
 
-    display_cols = ["ref_date", "REFERRING_PHYSICIAN", "patient_name"]
+    display_cols = ["ref_date", "REFERRING_PHYSICIAN", "REFERRING_CLINIC", "patient_name"]
     if dob_col:
         display_cols.append(dob_col)
     display_cols.append("status")
-    display_cols = [c for c in display_cols if c in clinic_df.columns]
-    display = clinic_df[display_cols].copy()
+    display_cols = [c for c in display_cols if c in display_df.columns]
+    display = display_df[display_cols].copy()
 
     rename = {
         "ref_date": "Referral Date",
-        "REFERRING_PHYSICIAN": "Referring Physician",
+        "REFERRING_PHYSICIAN": "Physician",
+        "REFERRING_CLINIC": "Clinic",
         "patient_name": "Patient",
         "dob_display": "DOB",
         "PATIENT_AGE": "Age",
@@ -392,31 +472,79 @@ def _render_recent_patients(df, clinic_name):
     }
     display = display.rename(columns={k: v for k, v in rename.items() if k in display.columns})
 
-    st.subheader(f"Recent Referrals — Last 14 Days ({len(display)})")
+    st.subheader(title)
     st.markdown(
-        f'<span style="font-size:10px; color:#999;">Data range: {cutoff.strftime("%b %d, %Y")} — {today.strftime("%b %d, %Y")}</span>',
+        f'<span style="font-size:10px; color:#999;">Data range: {date_label}</span>',
         unsafe_allow_html=True,
     )
 
-    # Style status column with colors
     def _style_status(val):
-        bg = _status_color(val)
-        return f"background-color: {bg}; border-radius: 3px; padding: 2px 6px;"
+        return f"background-color: {_status_color(val)}; border-radius: 3px; padding: 2px 6px;"
 
     styled = display.reset_index(drop=True).style.applymap(
         _style_status, subset=["Status"] if "Status" in display.columns else []
     )
     st.dataframe(styled, use_container_width=True, hide_index=True)
 
-    # Summary counts
-    status_counts = display["Status"].value_counts() if "Status" in display.columns else pd.Series()
-    if not status_counts.empty:
-        summary_parts = [f"{count} {status}" for status, count in status_counts.items()]
-        st.caption(" · ".join(summary_parts))
+    if "Status" in display.columns:
+        counts = display["Status"].value_counts()
+        st.caption(" · ".join(f"{c} {s}" for s, c in counts.items()))
 
 
-def _render_clinic_card(df, clinic_name, period_col):
-    """Render the clinic briefing card (KPIs, top providers, trend chart)."""
+def _render_provider_card(df, provider_name, period_col):
+    """Render briefing card for a single provider."""
+    prov_df = df[df["REFERRING_PHYSICIAN"] == provider_name]
+    if prov_df.empty:
+        return
+
+    m = compute_metrics(prov_df)
+    primary_clinic = prov_df["REFERRING_CLINIC"].mode()
+    primary_clinic = primary_clinic.iloc[0] if not primary_clinic.empty else "—"
+    last_ref = prov_df["REFERRAL_DATE"].max()
+    days_since = (pd.Timestamp.now().normalize() - last_ref).days if pd.notna(last_ref) else None
+    days_str = f" · Last referral <b>{days_since}d ago</b>" if days_since is not None else ""
+
+    d_min = prov_df["REFERRAL_DATE"].min()
+    d_max = prov_df["REFERRAL_DATE"].max()
+    st.markdown(f"### {PROV_ICON} {provider_name}", unsafe_allow_html=True)
+    st.markdown(f"<span style='font-size:13px;color:#666;'>{primary_clinic}{days_str}</span>", unsafe_allow_html=True)
+    if pd.notna(d_min) and pd.notna(d_max):
+        st.markdown(
+            f'<span style="font-size:10px; color:#999;">Data range: {d_min.strftime("%b %d, %Y")} — {d_max.strftime("%b %d, %Y")}</span>',
+            unsafe_allow_html=True,
+        )
+
+    cols = st.columns(4)
+    kpis = [
+        ("Referrals", f"{m['referrals']:,}"),
+        ("% Intake", f"{m['pct_intake']:.1%}"),
+        ("% Booked", f"{m['pct_booked']:.1%}"),
+        ("% Completed", f"{m['pct_completed']:.1%}"),
+    ]
+    for col, (label, val) in zip(cols, kpis):
+        col.metric(label, val)
+
+    period_data = compute_period_metrics(prov_df, period_col)
+    if len(period_data) > 1:
+        labels = period_data[period_col].tolist()
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=labels, y=period_data["referrals"],
+            marker_color="#4A90D9",
+            text=period_data["referrals"], textposition="auto",
+            textfont=dict(size=12, color="white"),
+        ))
+        fig.update_layout(
+            height=200, margin=dict(t=10, b=20, l=40, r=10),
+            yaxis=dict(title=""), showlegend=False,
+        )
+        st.plotly_chart(fig, use_container_width=True, key="vp_prov_trend")
+
+    st.divider()
+
+
+def _render_clinic_card(df, clinic_name, period_col, df_full=None):
+    """Render the clinic briefing card (KPIs, top providers with PDF buttons, trend chart)."""
     clinic_df = df[df["REFERRING_CLINIC"] == clinic_name]
     if clinic_df.empty:
         return
@@ -463,7 +591,8 @@ def _render_clinic_card(df, clinic_name, period_col):
     for col, (label, val) in zip(cols, kpis):
         col.metric(label, val)
 
-    st.markdown(f"**Top Providers**")
+    # ── Top Providers table with provider PDF download buttons ────────────────
+    st.markdown("**Top Providers**")
     prov_agg = clinic_df.groupby(["provider_id", "REFERRING_PHYSICIAN"]).agg(
         referrals=("REFERRAL_ID", "count"),
         visit_booked=("visit_booked", "sum"),
@@ -472,14 +601,55 @@ def _render_clinic_card(df, clinic_name, period_col):
     prov_agg["pct_booked"] = (prov_agg["visit_booked"] / prov_agg["referrals"]).fillna(0)
     prov_agg = prov_agg.sort_values("referrals", ascending=False).head(10)
 
-    prov_display = prov_agg[["REFERRING_PHYSICIAN", "referrals", "pct_booked", "last_ref"]].copy()
-    prov_display["pct_booked"] = (prov_display["pct_booked"] * 100).round(1).astype(str) + "%"
-    prov_display["last_ref"] = prov_display["last_ref"].dt.strftime("%Y-%m-%d")
-    prov_display = prov_display.rename(columns={
-        "REFERRING_PHYSICIAN": "Provider", "referrals": "Referrals",
-        "pct_booked": "% Booked", "last_ref": "Last Referral",
-    })
-    st.dataframe(prov_display.reset_index(drop=True), use_container_width=True, hide_index=True)
+    _pdf_src = df_full if df_full is not None else df
+    _safe_fn = lambda s: str(s).replace(" ", "_").replace("/", "-")[:40]
+
+    th = "padding:6px 10px;text-align:left;font-size:12px;font-weight:700;color:#555;border-bottom:2px solid #dee2e6;background:#f8f9fa;white-space:nowrap;"
+    td = "padding:5px 10px;font-size:12px;color:#1A1A2E;border-bottom:1px solid #f0f0f0;vertical-align:middle;"
+    td_dl = "padding:5px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle;text-align:center;"
+    link_style = "display:inline-block;font-size:14px;text-decoration:none;padding:2px 6px;border-radius:4px;border:1px solid #dee2e6;background:#fff;margin:0 2px;line-height:1.4;"
+
+    rows_html = ""
+    for _, r in prov_agg.iterrows():
+        prov_name = str(r["REFERRING_PHYSICIAN"])
+        refs = int(r["referrals"])
+        pct = f"{r['pct_booked']:.1%}"
+        last = r["last_ref"].strftime("%Y-%m-%d") if pd.notna(r["last_ref"]) else "--"
+
+        p_link = ""
+        pdf = _cached_provider_pdf(_pdf_src, prov_name)
+        if pdf:
+            p_b64 = base64.b64encode(pdf).decode()
+            p_link = (
+                f'<a href="data:application/pdf;base64,{p_b64}" '
+                f'download="{_safe_fn(prov_name)}_provider_report.pdf" '
+                f'title="Provider Report: {prov_name}" style="{link_style}">&#x1F464;</a>'
+            )
+
+        rows_html += (
+            f"<tr>"
+            f'<td style="{td}">{prov_name}</td>'
+            f'<td style="{td}">{refs}</td>'
+            f'<td style="{td}">{pct}</td>'
+            f'<td style="{td}">{last}</td>'
+            f'<td style="{td_dl}">{p_link}</td>'
+            f"</tr>"
+        )
+
+    html = (
+        '<div style="overflow-x:auto;">'
+        '<table style="border-collapse:collapse;width:100%;font-size:12px;">'
+        "<thead><tr>"
+        f'<th style="{th}">Provider</th>'
+        f'<th style="{th}">Referrals</th>'
+        f'<th style="{th}">% Booked</th>'
+        f'<th style="{th}">Last Referral</th>'
+        f'<th style="{th}">Report</th>'
+        "</tr></thead>"
+        f"<tbody>{rows_html}</tbody>"
+        "</table></div>"
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
     period_data = compute_period_metrics(clinic_df, period_col)
     if len(period_data) > 1:

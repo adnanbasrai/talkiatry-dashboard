@@ -27,7 +27,7 @@ from components.pdf_export import generate_clinic_status_report, generate_provid
 
 
 # Bump this any time PDF generation code changes to invalidate cached PDFs
-_PDF_VERSION = 2
+_PDF_VERSION = 4
 
 @st.cache_data(show_spinner=False)
 def _cached_clinic_pdf(df_full, clinic_name, _version=_PDF_VERSION):
@@ -111,7 +111,7 @@ def render_action_plan(df: pd.DataFrame, period_col: str, chase_df=None, df_full
     account_insights: dict[str, list[AccountInsight]] = {}
     for acct in selected_accounts:
         acct_df = df[df["PARTNER_ASSIGNMENT"] == acct]
-        account_insights[acct] = compute_account_insights(acct_df, period_col, max_insights=4)
+        account_insights[acct] = compute_account_insights(acct_df, period_col, max_insights=4, df_full=df_full)
 
     # ── List / Map view toggle ────────────────────────────────────────────────
     view_key = f"insight_view_{ppm_key}"
@@ -175,7 +175,10 @@ def _render_insight_table_html(display_data: list[dict], ins, df_full):
     for row in display_data:
         clinic   = row.get("Clinic", "")
         raw_prov = row.get("Provider to Visit") or row.get("Key Providers to Visit", "")
-        provider = raw_prov.split(",")[0].strip() if raw_prov else ""
+        # Only generate a provider PDF if there is exactly one provider —
+        # multiple providers are pipe-separated; the clinic report covers all of them.
+        parts    = [p.strip() for p in raw_prov.split(" | ") if p.strip() and p.strip() != "—"] if raw_prov else []
+        provider = parts[0] if len(parts) == 1 else ""
         c_b64, p_b64 = "", ""
         if df_full is not None:
             if clinic:
@@ -227,7 +230,7 @@ def _render_insight_table_html(display_data: list[dict], ins, df_full):
 
 # ── Insight cards ─────────────────────────────────────────────────────────────
 def _render_insight_cards(insights: list[AccountInsight], idx: int = 0, df_full=None):
-    for idx, ins in enumerate(insights):
+    for card_idx, ins in enumerate(insights):
         style   = _SENTIMENT[ins.sentiment]
         border  = style["border"]
         bg      = style["bg"]
@@ -259,7 +262,7 @@ def _render_insight_cards(insights: list[AccountInsight], idx: int = 0, df_full=
 
             with st.expander(expander_label, expanded=False):
                 # Unique session state key per insight instance
-                expand_key = f"_show_all_{ins.type}_{idx}"
+                expand_key = f"_show_all_{ins.type}_{idx}_{card_idx}"
                 show_all = st.session_state.get(expand_key, False)
 
                 display_data = full_data if show_all else preview_data

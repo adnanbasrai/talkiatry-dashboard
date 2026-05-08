@@ -194,7 +194,7 @@ def render_account_signals_table(df: pd.DataFrame, period_col: str, toggle_key: 
     view_mode = st.pills(
         "View mode",
         options=["Status", "Metric"],
-        default="Status",
+        default="Metric",
         selection_mode="single",
         key=toggle_key,
         label_visibility="collapsed",

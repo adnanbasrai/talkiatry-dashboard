@@ -527,21 +527,53 @@ def generate_summary(df: pd.DataFrame, period_col: str) -> str:
 
 
 def compute_retention(df: pd.DataFrame, partner_filter: str = None) -> pd.DataFrame:
-    """Provider retention cohort analysis using provider_id (coalesce NPI, physician name) to match Omni."""
+    """Provider retention cohort analysis matching Snowflake source-of-truth logic.
+
+    Key design decisions (aligned with SQL):
+    - Exclude today's partial data (referral_date < today)
+    - Provider key: REFERRING_PHYSICIAN — matches Snowflake retention SQL (which filters
+      WHERE referring_physician IS NOT NULL on the raw name column before coalescing).
+    - Therapy referrals are NYU-only and recent — excluded from CSV, no impact on historical cohorts.
+    - Cohorts are per (REFERRING_PHYSICIAN, PARTNER_ASSIGNMENT) — same provider at two accounts = two cohort entries
+    - First-ever referral month is the min referral date for that provider within that account
+    - M1 = referred in exactly month M+1; M2 = M+2; etc.
+    """
+    today = pd.Timestamp.now().normalize()
     sub = df.copy()
+    # Mirror SQL: referral_date < CURRENT_DATE() (exclude today's partial data)
+    sub = sub[sub["REFERRAL_DATE"] < today]
+
     if partner_filter:
         sub = sub[sub["PARTNER_ASSIGNMENT"] == partner_filter]
 
-    sub = sub[sub["provider_id"].notna()]
+    # Use REFERRING_PHYSICIAN (physician name) to match Snowflake retention SQL.
+    # Note: Snowflake aliases COALESCE(NPI, physician) as "referring_physician" but filters
+    # WHERE referring_physician IS NOT NULL on the raw name column — effectively the same
+    # population as filtering on REFERRING_PHYSICIAN directly.
+    # Therapy referrals are NYU-only and only started recently — no impact on historical cohorts.
+    sub = sub[sub["REFERRING_PHYSICIAN"].notna() & (sub["REFERRING_PHYSICIAN"].astype(str).str.strip() != "")]
     sub["ref_month"] = sub["REFERRAL_DATE"].dt.to_period("M")
 
-    first_ref = sub.groupby("provider_id")["ref_month"].min().reset_index()
-    first_ref.columns = ["provider_id", "first_referral_month"]
+    # Group key: per physician × partner (matches Snowflake cohort scoping)
+    group_key = ["REFERRING_PHYSICIAN", "PARTNER_ASSIGNMENT"]
 
-    provider_months = sub.groupby("provider_id")["ref_month"].apply(set).reset_index()
-    provider_months.columns = ["provider_id", "active_months"]
+    # First referral month per provider × partner
+    first_ref = (
+        sub.groupby(group_key)["ref_month"]
+        .min()
+        .reset_index()
+        .rename(columns={"ref_month": "first_referral_month"})
+    )
 
-    cohort = first_ref.merge(provider_months, on="provider_id")
+    # Set of active months per provider × partner (for retention check within same partner)
+    provider_months = (
+        sub.groupby(group_key)["ref_month"]
+        .apply(set)
+        .reset_index()
+        .rename(columns={"ref_month": "active_months"})
+    )
+
+    cohort = first_ref.merge(provider_months, on=group_key)
     all_cohorts = sorted(cohort["first_referral_month"].unique())
 
     rows = []
