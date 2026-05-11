@@ -36,13 +36,14 @@ def _render_clinic_briefing(df, period_col, df_full=None):
     st.subheader("Visit Prep")
     st.caption("Search for a provider, clinic, or zip code to get a briefing before your visit.")
 
-    search_mode = st.radio("Search by", ["Provider", "Clinic", "Zip Code"], horizontal=True, key="vp_mode")
+    search_mode = st.radio("Search by", ["Provider", "Clinic", "Account", "Zip Code"], horizontal=True, key="vp_mode")
 
     clinic_geo = build_clinic_geo_table(df)
     all_clinics = sorted(df["REFERRING_CLINIC"].dropna().unique().tolist())
 
     target_clinic = None
     target_provider = None
+    target_account = None
     target_zip = None
     target_lat = None
     target_lng = None
@@ -77,6 +78,25 @@ def _render_clinic_briefing(df, period_col, df_full=None):
                 target_lat = clinic_rows.iloc[0]["lat"]
                 target_lng = clinic_rows.iloc[0]["lng"]
                 target_zip = clinic_rows.iloc[0]["REFERRING_CLINIC_ZIP"]
+
+    elif search_mode == "Account":
+        all_accounts = sorted(df["PARTNER_ASSIGNMENT"].dropna().unique().tolist())
+        selected_account = st.selectbox(
+            "Account", options=all_accounts, index=None,
+            placeholder="Type to search...", key="vp_account",
+        )
+        if selected_account:
+            target_account = selected_account
+            # Geocode from the account's most active clinic
+            acct_df = df[df["PARTNER_ASSIGNMENT"] == selected_account]
+            primary_clinic = acct_df["REFERRING_CLINIC"].mode()
+            if not primary_clinic.empty:
+                clinic_rows = clinic_geo[clinic_geo["REFERRING_CLINIC"] == primary_clinic.iloc[0]]
+                if not clinic_rows.empty and pd.notna(clinic_rows.iloc[0].get("lat")):
+                    target_lat = clinic_rows.iloc[0]["lat"]
+                    target_lng = clinic_rows.iloc[0]["lng"]
+                    target_zip = clinic_rows.iloc[0].get("REFERRING_CLINIC_ZIP")
+
     else:
         all_zips = sorted(df["REFERRING_CLINIC_ZIP"].dropna().unique().tolist())
         selected_zip = st.selectbox(
@@ -155,6 +175,19 @@ def _render_clinic_briefing(df, period_col, df_full=None):
         if show_refs_clinic:
             st.markdown(_PRIVACY_BANNER, unsafe_allow_html=True)
             _render_recent_referrals(df[df["REFERRING_CLINIC"] == target_clinic], key_suffix="clinic")
+
+    # ── Account briefing ─────────────────────────────────────────────────────
+    if target_account:
+        show_refs_account = st.checkbox(
+            "Show referral status report",
+            key="vp_show_refs_account",
+        )
+        if show_refs_account:
+            st.markdown(_PRIVACY_NOTE, unsafe_allow_html=True)
+        _render_account_card(df, target_account, period_col)
+        if show_refs_account:
+            st.markdown(_PRIVACY_BANNER, unsafe_allow_html=True)
+            _render_recent_referrals(df[df["PARTNER_ASSIGNMENT"] == target_account], key_suffix="account")
 
     if search_mode == "Zip Code" and target_zip:
         zip_clinics = df[df["REFERRING_CLINIC_ZIP"] == target_zip]
@@ -623,6 +656,104 @@ def _render_clinic_card(df, clinic_name, period_col, df_full=None):
             yaxis=dict(title=""), showlegend=False,
         )
         st.plotly_chart(fig, use_container_width=True, key="vp_trend")
+
+    st.divider()
+
+
+def _render_account_card(df, account_name, period_col):
+    """Render account-level briefing card: KPIs, top clinics, top providers, trend."""
+    acct_df = df[df["PARTNER_ASSIGNMENT"] == account_name]
+    if acct_df.empty:
+        return
+
+    m = compute_metrics(acct_df)
+    last_ref = acct_df["REFERRAL_DATE"].max()
+    days_since = (pd.Timestamp.now().normalize() - last_ref).days if pd.notna(last_ref) else None
+    days_str = f" · Last referral <b>{days_since}d ago</b>" if days_since is not None else ""
+
+    ppm = ""
+    if "PPM" in acct_df.columns:
+        ppm_mode = acct_df["PPM"].dropna().mode()
+        ppm = ppm_mode.iloc[0] if not ppm_mode.empty else ""
+
+    d_min = acct_df["REFERRAL_DATE"].min()
+    d_max = acct_df["REFERRAL_DATE"].max()
+
+    st.markdown(f"### 🏢 {account_name}", unsafe_allow_html=True)
+    subtitle = f"PPM: {ppm}" if ppm else ""
+    st.markdown(f"<span style='font-size:13px;color:#666;'>{subtitle}{days_str}</span>", unsafe_allow_html=True)
+    if pd.notna(d_min) and pd.notna(d_max):
+        st.markdown(
+            f'<span style="font-size:10px; color:#999;">Data range: {d_min.strftime("%b %d, %Y")} — {d_max.strftime("%b %d, %Y")}</span>',
+            unsafe_allow_html=True,
+        )
+
+    # KPI row
+    cols = st.columns(5)
+    for col, (label, val) in zip(cols, [
+        ("Referrals",   f"{m['referrals']:,}"),
+        ("Providers",   f"{m['unique_providers']:,}"),
+        ("% Intake",    f"{m['pct_intake']:.1%}"),
+        ("% Booked",    f"{m['pct_booked']:.1%}"),
+        ("% Completed", f"{m['pct_completed']:.1%}"),
+    ]):
+        col.metric(label, val)
+
+    # Trend chart
+    period_data = compute_period_metrics(acct_df, period_col)
+    if len(period_data) > 1:
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=period_data[period_col].tolist(),
+            y=period_data["referrals"],
+            marker_color="#4A90D9",
+            text=period_data["referrals"], textposition="auto",
+            textfont=dict(size=12, color="white"),
+        ))
+        fig.update_layout(height=200, margin=dict(t=10, b=20, l=40, r=10),
+                          yaxis=dict(title=""), showlegend=False)
+        st.plotly_chart(fig, use_container_width=True, key="vp_acct_trend")
+
+    # Top clinics
+    st.markdown("**Clinics**")
+    from components.entity_table import render_entity_table
+    render_entity_table(acct_df, "REFERRING_CLINIC", period_col, label="Clinic",
+                        include_account=False, title=f"{account_name} — Clinic Performance")
+
+    # Top providers
+    st.markdown("**Top Providers**")
+    prov_agg = (
+        acct_df.groupby("REFERRING_PHYSICIAN")
+        .agg(referrals=("REFERRAL_ID", "count"),
+             visit_booked=("visit_booked", "sum"),
+             last_ref=("REFERRAL_DATE", "max"))
+        .reset_index()
+    )
+    prov_agg["pct_booked"] = (prov_agg["visit_booked"] / prov_agg["referrals"]).fillna(0)
+    prov_agg = prov_agg.sort_values("referrals", ascending=False).head(15)
+
+    th = "padding:6px 10px;text-align:left;font-size:12px;font-weight:700;color:#555;border-bottom:2px solid #dee2e6;background:#f8f9fa;"
+    td = "padding:5px 10px;font-size:12px;color:#1A1A2E;border-bottom:1px solid #f0f0f0;"
+    rows_html = ""
+    for _, r in prov_agg.iterrows():
+        last = r["last_ref"].strftime("%Y-%m-%d") if pd.notna(r["last_ref"]) else "--"
+        rows_html += (
+            f"<tr>"
+            f'<td style="{td}">{str(r["REFERRING_PHYSICIAN"])}</td>'
+            f'<td style="{td}">{int(r["referrals"])}</td>'
+            f'<td style="{td}">{r["pct_booked"]:.1%}</td>'
+            f'<td style="{td}">{last}</td>'
+            f"</tr>"
+        )
+    st.markdown(
+        '<div style="overflow-x:auto;">'
+        '<table style="border-collapse:collapse;width:100%;font-size:12px;">'
+        "<thead><tr>"
+        f'<th style="{th}">Provider</th><th style="{th}">Referrals</th>'
+        f'<th style="{th}">% Booked</th><th style="{th}">Last Referral</th>'
+        f"</tr></thead><tbody>{rows_html}</tbody></table></div>",
+        unsafe_allow_html=True,
+    )
 
     st.divider()
 
